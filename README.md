@@ -2,8 +2,24 @@
 
 Modified version of [VINS-Mono](https://github.com/HKUST-Aerial-Robotics/VINS-Mono) (commit 9e657be on Jan 9, 2019)
 
+* **A Robust and Versatile Monocular Visual-Inertial State Estimator**
+
+VINS-Mono uses an optimization-based sliding window formulation for providing high-accuracy visual-inertial odometry. It features efficient IMU pre-integration with bias correction, automatic estimator initialization, online extrinsic calibration, failure detection and recovery, loop detection, and global pose graph optimization, map merge, pose graph reuse, online temporal calibration, rolling shutter support.
+
 -----
 
+# Build
+
+```
+catkin_make
+```
+
+# Run
+
+```sh
+roslaunch vins_estimator euroc.launch
+rosbag play YOUR_PATH_TO_DATASET/MH_01_easy.bag
+```
 
 # Related Papers
 

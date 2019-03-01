@@ -16,16 +16,22 @@ find_package(catkin REQUIRED COMPONENTS
     )
 
 find_package(OpenCV)
-
-
 find_package(Ceres REQUIRED)
-
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(Eigen3)
 
 include_directories(${catkin_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS}  ${EIGEN3_INCLUDE_DIR})
 
 catkin_package()
+
+set(VocabBin ${CMAKE_CURRENT_SOURCE_DIR}/../support_files/brief_k10L6.bin)
+if(NOT EXISTS ${VocabBin})
+    message("=== Downloading brief_k10L6.bin to support_files directory ...")
+    file(DOWNLOAD
+            https://raw.githubusercontent.com/HKUST-Aerial-Robotics/VINS-Mono/master/support_files/brief_k10L6.bin
+            ${VocabBin}
+            SHOW_PROGRESS)
+endif()
 
 add_executable(pose_graph
     src/pose_graph_node.cpp
@@ -43,5 +49,5 @@ add_executable(pose_graph
     src/ThirdParty/VocabularyBinary.cpp
     )
 
-target_link_libraries(pose_graph ${catkin_LIBRARIES}  ${OpenCV_LIBS} ${CERES_LIBRARIES}) 
+target_link_libraries(pose_graph ${catkin_LIBRARIES}  ${OpenCV_LIBS} ${CERES_LIBRARIES})
 message("catkin_lib  ${catkin_LIBRARIES}")
