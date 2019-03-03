@@ -1,4 +1,5 @@
 <launch>
+    <arg name="rviz" default="true" />
     <arg name="config_path" default = "$(find feature_tracker)/../config/realsense/realsense_fisheye_config.yaml" />
 	  <arg name="vins_path" default = "$(find feature_tracker)/../config/../" />
     
@@ -19,5 +20,10 @@
         <param name="skip_cnt" type="int" value="0" />
         <param name="skip_dis" type="double" value="0" />
     </node>
+
+    <group if="$(arg rviz)">
+        <include file="$(find vins_estimator)/launch/vins_rviz.launch">
+        </include>
+    </group>
 
 </launch>
