@@ -1,17 +1,15 @@
 #include "solve_5pts.h"
 
-
 namespace cv {
     void decomposeEssentialMat( InputArray _E, OutputArray _R1, OutputArray _R2, OutputArray _t )
     {
-
         Mat E = _E.getMat().reshape(1, 3);
         CV_Assert(E.cols == 3 && E.rows == 3);
 
         Mat D, U, Vt;
         SVD::compute(E, D, U, Vt);
 
-        if (determinant(U) < 0) U *= -1.;
+        if (determinant(U)  < 0)  U *= -1.;
         if (determinant(Vt) < 0) Vt *= -1.;
 
         Mat W = (Mat_<double>(3, 3) << 0, 1, 0, -1, 0, 0, 0, 0, 1);
@@ -27,8 +25,19 @@ namespace cv {
         t.copyTo(_t);
     }
 
+    /**
+     * @brief 从本质矩阵中恢复出变换矩阵
+     * @param E
+     * @param _points1
+     * @param _points2
+     * @param _cameraMatrix
+     * @param _R
+     * @param _t
+     * @param _mask 求解本质矩阵时得到的内外点的标志位
+     * @return
+     */
     int recoverPose( InputArray E, InputArray _points1, InputArray _points2, InputArray _cameraMatrix,
-                         OutputArray _R, OutputArray _t, InputOutputArray _mask)
+                     OutputArray _R, OutputArray _t, InputOutputArray _mask)
     {
 
         Mat points1, points2, cameraMatrix;
@@ -36,9 +45,9 @@ namespace cv {
         _points2.getMat().convertTo(points2, CV_64F);
         _cameraMatrix.getMat().convertTo(cameraMatrix, CV_64F);
 
+        //! 确保两组Features的大小是一致的
         int npoints = points1.checkVector(2);
-        CV_Assert( npoints >= 0 && points2.checkVector(2) == npoints &&
-                                  points1.type() == points2.type());
+        CV_Assert( npoints >= 0 && points2.checkVector(2) == npoints && points1.type() == points2.type());
 
         CV_Assert(cameraMatrix.rows == 3 && cameraMatrix.cols == 3 && cameraMatrix.channels() == 1);
 
@@ -61,12 +70,13 @@ namespace cv {
         points1 = points1.t();
         points2 = points2.t();
 
+        //! 分解本质矩阵E，得到可能的4组解
         Mat R1, R2, t;
         decomposeEssentialMat(E, R1, R2, t);
         Mat P0 = Mat::eye(3, 4, R1.type());
         Mat P1(3, 4, R1.type()), P2(3, 4, R1.type()), P3(3, 4, R1.type()), P4(3, 4, R1.type());
-        P1(Range::all(), Range(0, 3)) = R1 * 1.0; P1.col(3) = t * 1.0;
-        P2(Range::all(), Range(0, 3)) = R2 * 1.0; P2.col(3) = t * 1.0;
+        P1(Range::all(), Range(0, 3)) = R1 * 1.0; P1.col(3) =  t * 1.0;
+        P2(Range::all(), Range(0, 3)) = R2 * 1.0; P2.col(3) =  t * 1.0;
         P3(Range::all(), Range(0, 3)) = R1 * 1.0; P3.col(3) = -t * 1.0;
         P4(Range::all(), Range(0, 3)) = R2 * 1.0; P4.col(3) = -t * 1.0;
 
@@ -75,6 +85,8 @@ namespace cv {
         // out far away points (i.e. infinite points) since
         // there depth may vary between postive and negtive.
         double dist = 50.0;
+
+        //! 统计3D点在两个坐标系下深度值大于0，小于50的个数
         Mat Q;
         triangulatePoints(P0, P1, points1, points2, Q);
         Mat mask1 = Q.row(2).mul(Q.row(3)) > 0;
@@ -126,6 +138,7 @@ namespace cv {
         mask4 = mask4.t();
 
         // If _mask is given, then use it to filter outliers.
+        //! 剔除外点
         if (!_mask.empty())
         {
             Mat mask = _mask.getMat();
@@ -144,6 +157,7 @@ namespace cv {
         _R.create(3, 3, R1.type());
         _t.create(3, 1, t.type());
 
+        //! 统计符合要求的3D点的个数
         int good1 = countNonZero(mask1);
         int good2 = countNonZero(mask2);
         int good3 = countNonZero(mask3);
@@ -189,24 +203,37 @@ namespace cv {
     }
 }
 
-
+/**
+ * @brief 利用5点法求解变换矩阵
+ * @param corres
+ * @param Rotation
+ * @param Translation
+ * @return
+ */
 bool MotionEstimator::solveRelativeRT(const vector<pair<Vector3d, Vector3d>> &corres, Matrix3d &Rotation, Vector3d &Translation)
 {
     if (corres.size() >= 15)
     {
+        //! Step1：提取匹配完的Features
         vector<cv::Point2f> ll, rr;
         for (int i = 0; i < int(corres.size()); i++)
         {
             ll.push_back(cv::Point2f(corres[i].first(0), corres[i].first(1)));
             rr.push_back(cv::Point2f(corres[i].second(0), corres[i].second(1)));
         }
+
         cv::Mat mask;
+        //! Step2：利用Ransac算法计算本质矩阵，内外点的阈值距离设定为0.3 / 460
         cv::Mat E = cv::findFundamentalMat(ll, rr, cv::FM_RANSAC, 0.3 / 460, 0.99, mask);
+
         cv::Mat cameraMatrix = (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
+
+        //! Step3：计算变换矩阵并得到内点个数
         cv::Mat rot, trans;
         int inlier_cnt = cv::recoverPose(E, ll, rr, cameraMatrix, rot, trans, mask);
         //cout << "inlier_cnt " << inlier_cnt << endl;
 
+        //! 得到变换矩阵 ll ==> rr
         Eigen::Matrix3d R;
         Eigen::Vector3d T;
         for (int i = 0; i < 3; i++)
@@ -216,8 +243,11 @@ bool MotionEstimator::solveRelativeRT(const vector<pair<Vector3d, Vector3d>> &co
                 R(i, j) = rot.at<double>(i, j);
         }
 
-        Rotation = R.transpose();
+        //! Step4：得到旋转矩阵和平移量 rr ==> ll
+        Rotation    =  R.transpose();
         Translation = -R.transpose() * T;
+
+        //! 判断求取的内点个数是否满足要求
         if(inlier_cnt > 12)
             return true;
         else

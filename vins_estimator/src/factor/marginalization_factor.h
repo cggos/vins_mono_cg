@@ -14,8 +14,14 @@ const int NUM_THREADS = 4;
 
 struct ResidualBlockInfo
 {
-    ResidualBlockInfo(ceres::CostFunction *_cost_function, ceres::LossFunction *_loss_function, std::vector<double *> _parameter_blocks, std::vector<int> _drop_set)
-        : cost_function(_cost_function), loss_function(_loss_function), parameter_blocks(_parameter_blocks), drop_set(_drop_set) {}
+    ResidualBlockInfo(ceres::CostFunction *_cost_function,
+                      ceres::LossFunction *_loss_function,
+                      std::vector<double *> _parameter_blocks,
+                      std::vector<int> _drop_set) :
+            cost_function(_cost_function),
+            loss_function(_loss_function),
+            parameter_blocks(_parameter_blocks),
+            drop_set(_drop_set) {}
 
     void Evaluate();
 
@@ -28,8 +34,7 @@ struct ResidualBlockInfo
     std::vector<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> jacobians;
     Eigen::VectorXd residuals;
 
-    int localSize(int size)
-    {
+    int localSize(int size) {
         return size == 7 ? 6 : size;
     }
 };
@@ -40,7 +45,7 @@ struct ThreadsStruct
     Eigen::MatrixXd A;
     Eigen::VectorXd b;
     std::unordered_map<long, int> parameter_block_size; //global size
-    std::unordered_map<long, int> parameter_block_idx; //local size
+    std::unordered_map<long, int> parameter_block_idx;  //local  size
 };
 
 class MarginalizationInfo

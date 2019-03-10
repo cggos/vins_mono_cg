@@ -21,39 +21,43 @@ ProjectionFactor::ProjectionFactor(const Eigen::Vector3d &_pts_i, const Eigen::V
 bool ProjectionFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
 {
     TicToc tic_toc;
-    Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
+    Eigen::Vector3d    Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
     Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
 
-    Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
+    Eigen::Vector3d    Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
     Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]);
 
-    Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]);
+    Eigen::Vector3d    tic(parameters[2][0], parameters[2][1], parameters[2][2]);
     Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
 
     double inv_dep_i = parameters[3][0];
 
-    Eigen::Vector3d pts_camera_i = pts_i / inv_dep_i;
-    Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
-    Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
-    Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
-    Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
-    Eigen::Map<Eigen::Vector2d> residual(residuals);
+    // 将第i frame下的3D点转到第j frame坐标系下
+    Eigen::Vector3d pts_camera_i = pts_i / inv_dep_i;                 // pt in ith camera frame, 归一化平面
+    Eigen::Vector3d pts_imu_i    = qic * pts_camera_i + tic;          // pt in ith body frame
+    Eigen::Vector3d pts_w        = Qi * pts_imu_i + Pi;               // pt in world frame
+    Eigen::Vector3d pts_imu_j    = Qj.inverse() * (pts_w - Pj);       // pt in jth body frame
+    Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic); // pt in jth camera frame
 
-#ifdef UNIT_SPHERE_ERROR 
+    Eigen::Map<Eigen::Vector2d> residual(residuals);
+#ifdef UNIT_SPHERE_ERROR
+    // 求取切平面上的误差
     residual =  tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
 #else
+    // 求取归一化平面上的误差
     double dep_j = pts_camera_j.z();
     residual = (pts_camera_j / dep_j).head<2>() - pts_j.head<2>();
 #endif
-
-    residual = sqrt_info * residual;
+    residual = sqrt_info * residual; // 转成 马氏距离
 
     if (jacobians)
     {
-        Eigen::Matrix3d Ri = Qi.toRotationMatrix();
-        Eigen::Matrix3d Rj = Qj.toRotationMatrix();
+        Eigen::Matrix3d Ri  = Qi.toRotationMatrix();
+        Eigen::Matrix3d Rj  = Qj.toRotationMatrix();
         Eigen::Matrix3d ric = qic.toRotationMatrix();
+
         Eigen::Matrix<double, 2, 3> reduce(2, 3);
+
 #ifdef UNIT_SPHERE_ERROR
         double norm = pts_camera_j.norm();
         Eigen::Matrix3d norm_jaco;
@@ -67,16 +71,17 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
         reduce = tangent_base * norm_jaco;
 #else
         reduce << 1. / dep_j, 0, -pts_camera_j(0) / (dep_j * dep_j),
-            0, 1. / dep_j, -pts_camera_j(1) / (dep_j * dep_j);
+                  0, 1. / dep_j, -pts_camera_j(1) / (dep_j * dep_j);
 #endif
         reduce = sqrt_info * reduce;
 
+        // 因为残差是2， 四个参数块对应的雅克比矩阵分别是：2*7， 2*7, 2*7， 2*1
         if (jacobians[0])
         {
             Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_pose_i(jacobians[0]);
 
             Eigen::Matrix<double, 3, 6> jaco_i;
-            jaco_i.leftCols<3>() = ric.transpose() * Rj.transpose();
+            jaco_i.leftCols<3>()  = ric.transpose() * Rj.transpose();
             jaco_i.rightCols<3>() = ric.transpose() * Rj.transpose() * Ri * -Utility::skewSymmetric(pts_imu_i);
 
             jacobian_pose_i.leftCols<6>() = reduce * jaco_i;
@@ -88,28 +93,35 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
             Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_pose_j(jacobians[1]);
 
             Eigen::Matrix<double, 3, 6> jaco_j;
-            jaco_j.leftCols<3>() = ric.transpose() * -Rj.transpose();
+            jaco_j.leftCols<3>()  = ric.transpose() * -Rj.transpose();
             jaco_j.rightCols<3>() = ric.transpose() * Utility::skewSymmetric(pts_imu_j);
 
             jacobian_pose_j.leftCols<6>() = reduce * jaco_j;
             jacobian_pose_j.rightCols<1>().setZero();
         }
+
         if (jacobians[2])
         {
             Eigen::Map<Eigen::Matrix<double, 2, 7, Eigen::RowMajor>> jacobian_ex_pose(jacobians[2]);
+
             Eigen::Matrix<double, 3, 6> jaco_ex;
             jaco_ex.leftCols<3>() = ric.transpose() * (Rj.transpose() * Ri - Eigen::Matrix3d::Identity());
-            Eigen::Matrix3d tmp_r = ric.transpose() * Rj.transpose() * Ri * ric;
-            jaco_ex.rightCols<3>() = -tmp_r * Utility::skewSymmetric(pts_camera_i) + Utility::skewSymmetric(tmp_r * pts_camera_i) +
-                                     Utility::skewSymmetric(ric.transpose() * (Rj.transpose() * (Ri * tic + Pi - Pj) - tic));
+            Eigen::Matrix3d tmp_r = ric.transpose() *  Rj.transpose() * Ri * ric;
+            jaco_ex.rightCols<3>() =
+                    -tmp_r * Utility::skewSymmetric(pts_camera_i) +
+                     Utility::skewSymmetric(tmp_r * pts_camera_i) +
+                     Utility::skewSymmetric(ric.transpose() * (Rj.transpose() * (Ri * tic + Pi - Pj) - tic));
+
             jacobian_ex_pose.leftCols<6>() = reduce * jaco_ex;
             jacobian_ex_pose.rightCols<1>().setZero();
         }
+
         if (jacobians[3])
         {
             Eigen::Map<Eigen::Vector2d> jacobian_feature(jacobians[3]);
 #if 1
-            jacobian_feature = reduce * ric.transpose() * Rj.transpose() * Ri * ric * pts_i * -1.0 / (inv_dep_i * inv_dep_i);
+            jacobian_feature =
+                    reduce * ric.transpose() * Rj.transpose() * Ri * ric * pts_i * -1.0 / (inv_dep_i * inv_dep_i);
 #else
             jacobian_feature = reduce * ric.transpose() * Rj.transpose() * Ri * ric * pts_i;
 #endif
@@ -144,30 +156,32 @@ void ProjectionFactor::check(double **parameters)
     std::cout << Eigen::Map<Eigen::Vector2d>(jaco[3]) << std::endl
               << std::endl;
 
-    Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
+    Eigen::Vector3d    Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
     Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
 
-    Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
+    Eigen::Vector3d    Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
     Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]);
 
-    Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]);
+    Eigen::Vector3d    tic(parameters[2][0], parameters[2][1], parameters[2][2]);
     Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
+
     double inv_dep_i = parameters[3][0];
 
     Eigen::Vector3d pts_camera_i = pts_i / inv_dep_i;
-    Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
-    Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
-    Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
+    Eigen::Vector3d pts_imu_i    = qic * pts_camera_i + tic;
+    Eigen::Vector3d pts_w        = Qi * pts_imu_i + Pi;
+    Eigen::Vector3d pts_imu_j    = Qj.inverse() * (pts_w - Pj);
     Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
 
-
     Eigen::Vector2d residual;
+
 #ifdef UNIT_SPHERE_ERROR 
     residual =  tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
 #else
     double dep_j = pts_camera_j.z();
     residual = (pts_camera_j / dep_j).head<2>() - pts_j.head<2>();
 #endif
+
     residual = sqrt_info * residual;
 
     puts("num");
@@ -177,14 +191,15 @@ void ProjectionFactor::check(double **parameters)
     Eigen::Matrix<double, 2, 19> num_jacobian;
     for (int k = 0; k < 19; k++)
     {
-        Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
+        Eigen::Vector3d    Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
         Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
 
-        Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
+        Eigen::Vector3d    Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
         Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]);
 
-        Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]);
+        Eigen::Vector3d    tic(parameters[2][0], parameters[2][1], parameters[2][2]);
         Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
+
         double inv_dep_i = parameters[3][0];
 
         int a = k / 3, b = k % 3;
@@ -206,19 +221,22 @@ void ProjectionFactor::check(double **parameters)
             inv_dep_i += delta.x();
 
         Eigen::Vector3d pts_camera_i = pts_i / inv_dep_i;
-        Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
-        Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
-        Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
+        Eigen::Vector3d pts_imu_i    = qic * pts_camera_i + tic;
+        Eigen::Vector3d pts_w        = Qi * pts_imu_i + Pi;
+        Eigen::Vector3d pts_imu_j    = Qj.inverse() * (pts_w - Pj);
         Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
 
         Eigen::Vector2d tmp_residual;
+
 #ifdef UNIT_SPHERE_ERROR 
         tmp_residual =  tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
 #else
         double dep_j = pts_camera_j.z();
         tmp_residual = (pts_camera_j / dep_j).head<2>() - pts_j.head<2>();
 #endif
+
         tmp_residual = sqrt_info * tmp_residual;
+
         num_jacobian.col(k) = (tmp_residual - residual) / eps;
     }
     std::cout << num_jacobian << std::endl;

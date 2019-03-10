@@ -7,6 +7,11 @@
 #include "../utility/tic_toc.h"
 #include "../parameters.h"
 
+/// 2:残差的长度(err_x,err_y)
+/// 7:第一个优化参数的长度para_Pose[imu_i]
+/// 7:第二个优化参数的长度para_Pose[imu_j]
+/// 7:第3个优化参数的长度para_Ex_Pose[0]
+/// 1:第4个优化参数feature_inverse_depth的长度para_Feature[feature_index]
 class ProjectionFactor : public ceres::SizedCostFunction<2, 7, 7, 7, 1>
 {
   public:

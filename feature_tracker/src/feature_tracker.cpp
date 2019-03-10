@@ -28,7 +28,6 @@ void reduceVector(vector<int> &v, vector<uchar> status)
     v.resize(j);
 }
 
-
 FeatureTracker::FeatureTracker()
 {
 }
@@ -63,10 +62,8 @@ void FeatureTracker::setMask() {
     }
 }
 
-void FeatureTracker::addPoints()
-{
-    for (auto &p : n_pts)
-    {
+void FeatureTracker::addPoints() {
+    for (auto &p : n_pts) {
         forw_pts.push_back(p);
         ids.push_back(-1);
         track_cnt.push_back(1);
@@ -159,10 +156,9 @@ void FeatureTracker::readImage(const cv::Mat &_img, double _cur_time)
     prev_time = cur_time;
 }
 
-void FeatureTracker::rejectWithF()
-{
-    if (forw_pts.size() >= 8)
-    {
+void FeatureTracker::rejectWithF() {
+
+    if (forw_pts.size() >= 8) {
         ROS_DEBUG("FM ransac begins");
 
         TicToc t_f;
@@ -197,15 +193,12 @@ void FeatureTracker::rejectWithF()
     }
 }
 
-bool FeatureTracker::updateID(unsigned int i)
-{
-    if (i < ids.size())
-    {
+bool FeatureTracker::updateID(unsigned int i) {
+    if (i < ids.size()) {
         if (ids[i] == -1)
             ids[i] = n_id++;
         return true;
-    }
-    else
+    } else
         return false;
 }
 
@@ -232,20 +225,20 @@ void FeatureTracker::showUndistortion(const string &name)
         }
     }
 
-    for (int i = 0; i < int(undistortedp.size()); i++)
-    {
+    for (int i = 0; i < int(undistortedp.size()); i++) {
         cv::Mat pp(3, 1, CV_32FC1);
         pp.at<float>(0, 0) = float(undistortedp[i].x() * FOCAL_LENGTH + COL / 2);
         pp.at<float>(1, 0) = float(undistortedp[i].y() * FOCAL_LENGTH + ROW / 2);
         pp.at<float>(2, 0) = 1.0;
 
-        if (pp.at<float>(1, 0) + 300 >= 0 && pp.at<float>(1, 0) + 300 < ROW + 600 && pp.at<float>(0, 0) + 300 >= 0 && pp.at<float>(0, 0) + 300 < COL + 600)
-        {
-            undistortedImg.at<uchar>((int)pp.at<float>(1, 0) + 300, (int)pp.at<float>(0, 0) + 300) =
-                    cur_img.at<uchar>((int)distortedp[i].y(), (int)distortedp[i].x());
-        }
-        else
-        {
+        if (pp.at<float>(1, 0) + 300 >= 0 &&
+            pp.at<float>(1, 0) + 300 < ROW + 600 &&
+            pp.at<float>(0, 0) + 300 >= 0 &&
+            pp.at<float>(0, 0) + 300 < COL + 600) {
+
+            undistortedImg.at<uchar>((int) pp.at<float>(1, 0) + 300, (int) pp.at<float>(0, 0) + 300) =
+                    cur_img.at<uchar>((int) distortedp[i].y(), (int) distortedp[i].x());
+        } else {
             //ROS_ERROR("(%f %f) -> (%f %f)", distortedp[i].y, distortedp[i].x, pp.at<float>(1, 0), pp.at<float>(0, 0));
         }
     }

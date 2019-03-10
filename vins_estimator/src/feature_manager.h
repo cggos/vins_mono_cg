@@ -59,8 +59,7 @@ class FeaturePerId
     FeaturePerId(int _feature_id, int _start_frame)
         : feature_id(_feature_id), start_frame(_start_frame),
           used_num(0), estimated_depth(-1.0), solve_flag(0)
-    {
-    }
+    {}
 
     int endFrame();
 };
@@ -77,7 +76,6 @@ class FeatureManager
     int getFeatureCount();
 
     bool addFeatureCheckParallax(int frame_count, const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image, double td);
-    void debugShow();
     vector<pair<Vector3d, Vector3d>> getCorresponding(int frame_count_l, int frame_count_r);
 
     //void updateDepth(const VectorXd &x);

@@ -43,9 +43,9 @@ void readParameters(ros::NodeHandle &n);
 
 enum SIZE_PARAMETERIZATION
 {
-    SIZE_POSE = 7,
-    SIZE_SPEEDBIAS = 9,
-    SIZE_FEATURE = 1
+    SIZE_POSE = 7,       ///> 7 DoF(x,y,z,qx,qy,qz,qw)
+    SIZE_SPEEDBIAS = 9,  ///> 9 DoF(vx,vy,vz, bas_x,bas_y,bas_z, bgs_x,bgs_y,bgs_z)
+    SIZE_FEATURE = 1     ///> 1 DoF(inv_depth)
 };
 
 enum StateOrder

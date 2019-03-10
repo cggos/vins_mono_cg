@@ -3,9 +3,10 @@
 Eigen::Matrix2d ProjectionTdFactor::sqrt_info;
 double ProjectionTdFactor::sum_t;
 
-ProjectionTdFactor::ProjectionTdFactor(const Eigen::Vector3d &_pts_i, const Eigen::Vector3d &_pts_j, 
+ProjectionTdFactor::ProjectionTdFactor(const Eigen::Vector3d &_pts_i,      const Eigen::Vector3d &_pts_j,
                                        const Eigen::Vector2d &_velocity_i, const Eigen::Vector2d &_velocity_j,
-                                       const double _td_i, const double _td_j, const double _row_i, const double _row_j) : 
+                                       const double _td_i,  const double _td_j,
+                                       const double _row_i, const double _row_j) :
                                        pts_i(_pts_i), pts_j(_pts_j), 
                                        td_i(_td_i), td_j(_td_j)
 {
@@ -29,18 +30,18 @@ ProjectionTdFactor::ProjectionTdFactor(const Eigen::Vector3d &_pts_i, const Eige
     tangent_base.block<1, 3>(0, 0) = b1.transpose();
     tangent_base.block<1, 3>(1, 0) = b2.transpose();
 #endif
-};
+}
 
 bool ProjectionTdFactor::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
 {
     TicToc tic_toc;
-    Eigen::Vector3d Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
+    Eigen::Vector3d    Pi(parameters[0][0], parameters[0][1], parameters[0][2]);
     Eigen::Quaterniond Qi(parameters[0][6], parameters[0][3], parameters[0][4], parameters[0][5]);
 
-    Eigen::Vector3d Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
+    Eigen::Vector3d    Pj(parameters[1][0], parameters[1][1], parameters[1][2]);
     Eigen::Quaterniond Qj(parameters[1][6], parameters[1][3], parameters[1][4], parameters[1][5]);
 
-    Eigen::Vector3d tic(parameters[2][0], parameters[2][1], parameters[2][2]);
+    Eigen::Vector3d    tic(parameters[2][0], parameters[2][1], parameters[2][2]);
     Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
 
     double inv_dep_i = parameters[3][0];
