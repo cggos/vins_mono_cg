@@ -21,6 +21,8 @@ roslaunch vins_estimator euroc.launch
 rosbag play YOUR_PATH_TO_DATASET/MH_01_easy.bag
 ```
 
+* [Ubuntu 16.04 下 VINS-Mono 的安装和使用(RealSense ZR300)](https://blog.csdn.net/u011178262/article/details/88086952)
+
 # Related Papers
 
 ```bibtex
