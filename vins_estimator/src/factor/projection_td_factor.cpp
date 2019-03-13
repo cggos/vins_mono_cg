@@ -48,23 +48,39 @@ bool ProjectionTdFactor::Evaluate(double const *const *parameters, double *resid
 
     double td = parameters[4][0];
 
+    /**
+     * 添加对 imu-camera 时间戳不完全同步和 Rolling shutter 相机的支持
+     * 主要的思路就是通过前端光流计算得到每个角点在归一化的速度，
+     * 根据 imu-camera时间戳的时间同步误差和Rolling shutter相机做一次rolling的时间，对角点的归一化坐标进行调整
+     *
+     * pts_i 是角点在归一化平面的坐标
+     * td    表示imu-camera时间戳的时间同步误差，是待优化项
+     * TR    表示Rolling shutter相机做一次rolling的时间
+     * row_i 是角点图像坐标的纵坐标
+     * ROW   图像坐标纵坐标的最大值
+     * velocity_i 是该角点在归一化平面的运动速度
+     *
+     * 因为在处理imu数据的时候，已经减过一次时间同步误差，因此修正后的时间误差是td - td_i
+     * TR / ROW * row_i 是相机 rolling 到这一行时所用的时间
+     * 最后得到的pts_i_td是处理时间同步误差和Rolling shutter时间后，角点在归一化平面的坐标
+     */
     Eigen::Vector3d pts_i_td, pts_j_td;
     pts_i_td = pts_i - (td - td_i + TR / ROW * row_i) * velocity_i;
     pts_j_td = pts_j - (td - td_j + TR / ROW * row_j) * velocity_j;
-    Eigen::Vector3d pts_camera_i = pts_i_td / inv_dep_i;
-    Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
-    Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
-    Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
-    Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
-    Eigen::Map<Eigen::Vector2d> residual(residuals);
 
+    Eigen::Vector3d pts_camera_i = pts_i_td / inv_dep_i;
+    Eigen::Vector3d pts_imu_i    = qic * pts_camera_i + tic;
+    Eigen::Vector3d pts_w        = Qi * pts_imu_i + Pi;
+    Eigen::Vector3d pts_imu_j    = Qj.inverse() * (pts_w - Pj);
+    Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
+
+    Eigen::Map<Eigen::Vector2d> residual(residuals);
 #ifdef UNIT_SPHERE_ERROR 
     residual =  tangent_base * (pts_camera_j.normalized() - pts_j_td.normalized());
 #else
     double dep_j = pts_camera_j.z();
     residual = (pts_camera_j / dep_j).head<2>() - pts_j_td.head<2>();
 #endif
-
     residual = sqrt_info * residual;
 
     if (jacobians)
@@ -182,11 +198,13 @@ void ProjectionTdFactor::check(double **parameters)
     Eigen::Vector3d pts_i_td, pts_j_td;
     pts_i_td = pts_i - (td - td_i + TR / ROW * row_i) * velocity_i;
     pts_j_td = pts_j - (td - td_j + TR / ROW * row_j) * velocity_j;
+
     Eigen::Vector3d pts_camera_i = pts_i_td / inv_dep_i;
-    Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
-    Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
-    Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
+    Eigen::Vector3d pts_imu_i    = qic * pts_camera_i + tic;
+    Eigen::Vector3d pts_w        = Qi * pts_imu_i + Pi;
+    Eigen::Vector3d pts_imu_j    = Qj.inverse() * (pts_w - Pj);
     Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
+
     Eigen::Vector2d residual;
 
 #ifdef UNIT_SPHERE_ERROR 
@@ -239,11 +257,13 @@ void ProjectionTdFactor::check(double **parameters)
         Eigen::Vector3d pts_i_td, pts_j_td;
         pts_i_td = pts_i - (td - td_i + TR / ROW * row_i) * velocity_i;
         pts_j_td = pts_j - (td - td_j + TR / ROW * row_j) * velocity_j;
+
         Eigen::Vector3d pts_camera_i = pts_i_td / inv_dep_i;
-        Eigen::Vector3d pts_imu_i = qic * pts_camera_i + tic;
-        Eigen::Vector3d pts_w = Qi * pts_imu_i + Pi;
-        Eigen::Vector3d pts_imu_j = Qj.inverse() * (pts_w - Pj);
+        Eigen::Vector3d pts_imu_i    = qic * pts_camera_i + tic;
+        Eigen::Vector3d pts_w        = Qi * pts_imu_i + Pi;
+        Eigen::Vector3d pts_imu_j    = Qj.inverse() * (pts_w - Pj);
         Eigen::Vector3d pts_camera_j = qic.inverse() * (pts_imu_j - tic);
+
         Eigen::Vector2d tmp_residual;
 
 #ifdef UNIT_SPHERE_ERROR 

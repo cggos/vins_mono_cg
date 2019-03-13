@@ -78,7 +78,7 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
         // 则 $d = r^T (L L^T) r = (L^T r)^T (L^T r)$
         // 令 $r' = (L^T r)$, 作为新的优化误差
         // 所以， sqrt_info 等于 $L^T$
-        residual = sqrt_info * residual;
+        residual = sqrt_info * residual; // 为了保证 IMU 和 视觉參差项在尺度上保持一致，一般会采用与量纲无关的马氏距离
 
         if (jacobians)
         {

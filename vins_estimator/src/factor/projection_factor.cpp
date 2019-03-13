@@ -30,7 +30,7 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
     Eigen::Vector3d    tic(parameters[2][0], parameters[2][1], parameters[2][2]);
     Eigen::Quaterniond qic(parameters[2][6], parameters[2][3], parameters[2][4], parameters[2][5]);
 
-    double inv_dep_i = parameters[3][0];
+    double inv_dep_i = parameters[3][0]; // i时刻相机坐标系下的map point的逆深度
 
     // 将第i frame下的3D点转到第j frame坐标系下
     Eigen::Vector3d pts_camera_i = pts_i / inv_dep_i;                 // pt in ith camera frame, 归一化平面
@@ -41,6 +41,7 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
 
     Eigen::Map<Eigen::Vector2d> residual(residuals);
 #ifdef UNIT_SPHERE_ERROR
+    // 把归一化平面上的重投影误差投影到Unit sphere上的好处就是可以支持所有类型的相机 why
     // 求取切平面上的误差
     residual =  tangent_base * (pts_camera_j.normalized() - pts_j.normalized());
 #else
@@ -48,7 +49,7 @@ bool ProjectionFactor::Evaluate(double const *const *parameters, double *residua
     double dep_j = pts_camera_j.z();
     residual = (pts_camera_j / dep_j).head<2>() - pts_j.head<2>();
 #endif
-    residual = sqrt_info * residual; // 转成 马氏距离
+    residual = sqrt_info * residual; // 转成 与量纲无关的马氏距离
 
     if (jacobians)
     {

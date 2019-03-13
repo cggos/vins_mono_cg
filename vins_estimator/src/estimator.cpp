@@ -128,7 +128,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
 }
 
 /**
- *
+ * @brief
  * @param image
  * @param header
  */
@@ -137,9 +137,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     ROS_DEBUG("new image coming ------------------------------------------");
     ROS_DEBUG("Adding feature points %lu", image.size());
 
-    //! 基于视差来选择关键帧(经过旋转补偿)
-    //! 向Featuresmanger中添加Features并确定共视关系及视差角的大小
-    //! 以此来选择边缘化的方式
+    // 基于视差来选择关键帧(经过旋转补偿)，以此来选择边缘化的方式
     if (f_manager.addFeatureCheckParallax(frame_count, image, td))
         marginalization_flag = MARGIN_OLD;         // Keyframe
     else
@@ -151,22 +149,22 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     ROS_DEBUG("number of feature: %d", f_manager.getFeatureCount());
     Headers[frame_count] = header;
 
-    //! 分别将读到的features和imu_mea加入到各自的序列当中
+    // 分别将读到的features和imu_mea加入到各自的序列当中
     ImageFrame imageframe(image, header.stamp.toSec());
     imageframe.pre_integration = tmp_pre_integration;
     all_image_frame.insert(make_pair(header.stamp.toSec(), imageframe));
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
 
-    //! 相机与IMU之间的相对旋转
+    // 相机与IMU之间的相对旋转
     if(ESTIMATE_EXTRINSIC == 2)
     {
         ROS_INFO("calibrating extrinsic param, rotation movement is needed");
         if (frame_count != 0)
         {
-            //! 选取两帧之间共有的Features
+            // 选取两帧之间共有的Features
             vector<pair<Vector3d, Vector3d>> corres = f_manager.getCorresponding(frame_count - 1, frame_count);
 
-            //! 校准相机与IMU之间的旋转
+            // 校准相机与IMU之间的旋转
             Matrix3d calib_ric;
             if (initial_ex_rotation.CalibrationExRotation(corres, pre_integrations[frame_count]->delta_q, calib_ric))
             {
@@ -772,7 +770,7 @@ void Estimator::optimization()
     // IMU residual: WINDOW_SIZE个(总长度WINDOW_SIZE+1), 每相邻两个Pose之间一个IMU residual项
     // feature residual: 观测数大于2的特征, 首次观测与后面的每次观测之间各一个residual项
 
-    // 添加 边缘化的残差
+    // 添加 边缘化的residual
     if (last_marginalization_info) { // construct new marginlization_factor
         auto *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
         problem.AddResidualBlock(marginalization_factor, NULL, last_marginalization_parameter_blocks);
@@ -915,8 +913,13 @@ void Estimator::optimization()
      * 而且当MAV进行一些退化运动(如: 匀速运动)时, 没有历史信息做约束的话是无法求解的.
      * 所以, 在移出位姿或特征的时候, 需要将相关联的约束转变成一个约束项作为prior放到优化问题中. 这就是marginalization要做的事情
      *
-     * 如果倒数第二帧是关键帧, 则将最旧的pose移出sliding window, 也就是MARGIN_OLD
-     * 如果倒数第二帧不是关键帧, 则将倒数第二帧pose移出sliding window, 也就是MARGIN_NEW
+     * MARGIN_OLD: 如果当前帧是关键帧，则丢弃滑动窗口内最老的图像帧，同时对与该图像帧关联的约束项进行边缘化处理。
+     * 这里需要注意的是，如果该关键帧是观察到某个地图点的第一帧，则需要把该地图点的深度转移到后面的图像帧中去。
+     *
+     * MARGIN_NEW: 如果当前帧不是关键帧，则丢弃当前帧的前一帧。因为判定当前帧不是关键帧的条件就是当前帧与前一帧视差很小，也就是说当前帧和前一帧很相似，
+     * 这种情况下直接丢弃前一帧，然后用当前帧代替前一帧。为什么这里可以不对前一帧进行边缘化，而是直接丢弃，原因就是当前帧和前一帧很相似，
+     * 因此当前帧与地图点之间的约束和前一帧与地图点之间的约束是很接近的，直接丢弃并不会造成整个约束关系丢失信息。这里需要注意的是，
+     * 要把当前帧和前一帧之间的 IMU 预积分转换为当前帧和前二帧之间的 IMU 预积分。
      *
      * 在悬停等运动较小的情况下, 会频繁的MARGIN_NEW, 这样也就保留了那些比较旧但是视差比较大的pose.
      * 这种情况如果一直MARGIN_OLD的话, 视觉约束不够强, 状态估计会受IMU积分误差影响, 具有较大的累积误差
@@ -957,7 +960,7 @@ void Estimator::optimization()
         }
 
         // 添加IMU的先验，只包含旧帧的IMU测量残差
-        // question(cg)：不应该是pre_integrations[0]么
+        //! question(cg)：不应该是pre_integrations[0]么
         {
             if (pre_integrations[1]->sum_dt < 10.0)
             {
