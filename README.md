@@ -6,7 +6,7 @@ Modified version of [VINS-Mono](https://github.com/HKUST-Aerial-Robotics/VINS-Mo
 
 VINS-Mono uses an optimization-based sliding window formulation for providing high-accuracy visual-inertial odometry. It features efficient IMU pre-integration with bias correction, automatic estimator initialization, online extrinsic calibration, failure detection and recovery, loop detection, and global pose graph optimization, map merge, pose graph reuse, online temporal calibration, rolling shutter support.
 
-[1] *VINS-Mono: A Robust and Versatile Monocular Visual-Inertial State Estimator*
+[1] *VINS-Mono: A Robust and Versatile Monocular Visual-Inertial State Estimator*    
 [2] *Online Temporal Calibration for Monocular Visual-Inertial Systems*
 
 -----
@@ -19,13 +19,22 @@ catkin_make
 
 # Run
 
-```sh
-roslaunch vins_estimator euroc.launch
-rosbag play YOUR_PATH_TO_DATASET/MH_01_easy.bag
-```
+* with Dataset
 
-* [Ubuntu 16.04 下 VINS-Mono 的安装和使用(RealSense ZR300)](https://blog.csdn.net/u011178262/article/details/88086952)
+  - MH_01_easy.bag
+  ```sh
+  roslaunch vins_estimator euroc.launch
+  rosbag play YOUR_PATH_TO_DATASET/MH_01_easy.bag
+  ```
 
+* with live camera
+
+  - [Ubuntu 16.04 下 VINS-Mono 的安装和使用(RealSense ZR300)](https://blog.csdn.net/u011178262/article/details/88086952)
+  ```sh
+  roslaunch maplab_realsense maplab_realsense.launch
+  roslaunch vins_estimator realsense_fisheye.launch
+  ```
+  
 
 # Tutorial
 
