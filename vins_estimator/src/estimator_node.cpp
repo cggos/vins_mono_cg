@@ -106,14 +106,14 @@ getMeasurements()
         if (imu_buf.empty() || feature_buf.empty())
             return measurements;
 
-        //! 如果最新的IMU的数据时间戳小于最旧特征点的时间戳，则等待IMU刷新
+        // 如果最新的IMU的数据时间戳小于最旧特征点的时间戳，则等待IMU刷新
         if (imu_buf.back()->header.stamp.toSec() <= feature_buf.front()->header.stamp.toSec() + estimator.td)
         {
             //ROS_WARN("wait for imu, only should happen at the beginning");
             return measurements;
         }
 
-        //! 如果最旧的IMU数据的时间戳大于最旧特征时间戳，则弹出旧图像
+        // 如果最旧的IMU数据的时间戳大于最旧特征时间戳，则弹出旧图像
         if (imu_buf.front()->header.stamp.toSec() >= feature_buf.front()->header.stamp.toSec() + estimator.td)
         {
             ROS_WARN("throw img, only should happen at the beginning");
@@ -124,8 +124,8 @@ getMeasurements()
         sensor_msgs::PointCloudConstPtr img_msg = feature_buf.front();
         feature_buf.pop();
 
-        //! 这里IMU和Feature做了简单的对齐，确保IMU的时间戳是小于图像的
-        //! 在IMU buff中的时间戳小于特征点的都和该帧特征联合存入
+        // 这里IMU和Feature做了简单的对齐，确保IMU的时间戳是小于图像的
+        // 在IMU buff中的时间戳小于特征点的都和该帧特征联合存入
         std::vector<sensor_msgs::ImuConstPtr> IMUs;
         while (imu_buf.front()->header.stamp.toSec() < img_msg->header.stamp.toSec() + estimator.td)
         {

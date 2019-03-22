@@ -191,13 +191,11 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
         tmp_A.block<3, 1>(0, 9) = frame_i->second.R.transpose() * (frame_j->second.T - frame_i->second.T) / 100.0;
         tmp_b.block<3, 1>(0, 0) = frame_j->second.pre_integration->delta_p +
                                   frame_i->second.R.transpose() * frame_j->second.R * TIC[0] - TIC[0];
-        //cout << "delta_p   " << frame_j->second.pre_integration->delta_p.transpose() << endl;
 
         tmp_A.block<3, 3>(3, 0) = -Matrix3d::Identity();
         tmp_A.block<3, 3>(3, 3) = frame_i->second.R.transpose() * frame_j->second.R;
         tmp_A.block<3, 3>(3, 6) = frame_i->second.R.transpose() * dt * Matrix3d::Identity();
         tmp_b.block<3, 1>(3, 0) = frame_j->second.pre_integration->delta_v;
-        //cout << "delta_v   " << frame_j->second.pre_integration->delta_v.transpose() << endl;
 
         Matrix<double, 6, 6> cov_inv = Matrix<double, 6, 6>::Zero();
         //cov.block<6, 6>(0, 0) = IMU_cov[i + 1];
@@ -210,10 +208,10 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
         /// question(cg): why
 
         A.block<6, 6>(i * 3, i * 3) += r_A.topLeftCorner<6, 6>();
-        b.segment<6>(i * 3) += r_b.head<6>();
+        b.segment<6> (i * 3)        += r_b.head<6>();
 
         A.bottomRightCorner<4, 4>() += r_A.bottomRightCorner<4, 4>();
-        b.tail<4>() += r_b.tail<4>();
+        b.tail<4>()                 += r_b.tail<4>();
 
         A.block<6, 4>(i * 3, n_state - 4) += r_A.topRightCorner<6, 4>();
         A.block<4, 6>(n_state - 4, i * 3) += r_A.bottomLeftCorner<4, 6>();

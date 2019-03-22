@@ -80,18 +80,6 @@ class IntegrationBase
      * @param result_delta_p       [本次的预积分结果]
      * @param result_linearized_ba [本次的预积分的加速度bias]
      * @param update_jacobian      [是否更新雅克比矩阵]
-     *
-     * 论文中的预积分部分采用积分法的是欧拉法(对应参考文献[1]中的公式(6)部分),这个地方使用的是中值法
-     * 区别在于在积分过程中加速度a和陀螺仪w的选择，欧拉法使用当前时间内的测量值，中值法取了上一时刻和当前时刻的中值(坐标系变换)
-     * 具体可以参考注释文档中1.1小节离散状态下预积分方程式
-     *
-     * w_k' = 0.5*(w_k + w_k-1) - b_w
-     *             |   1    |
-     * r_i+1 = r_i×|0.5*w_k'|
-     * a_k' = 0.5*[r_i*(a_k-1-b_a) + r_i+1*(a_k-b_a)]
-     *
-     * α_i+1 = α_i + β_i*t +0.5*a_k'*t*t
-     * β_i+! = β_i + a_k'*t
      */
     void midPointIntegration(double _dt, 
                             const Eigen::Vector3d &_acc_0, const Eigen::Vector3d &_gyr_0,
@@ -101,7 +89,7 @@ class IntegrationBase
                             Eigen::Vector3d &result_delta_p, Eigen::Quaterniond &result_delta_q, Eigen::Vector3d &result_delta_v,
                             Eigen::Vector3d &result_linearized_ba, Eigen::Vector3d &result_linearized_bg, bool update_jacobian)
     {
-        //! Step1: 预积分过程
+        //! 预积分过程（中值法）
 
         //ROS_INFO("midpoint integration");
 
@@ -119,11 +107,10 @@ class IntegrationBase
         result_linearized_ba = linearized_ba;
         result_linearized_bg = linearized_bg;
 
-        //! Step2: 计算雅克比矩阵
+        //! 计算雅克比矩阵
 
         // 离散状态下在计算协方差矩阵的时候为：P' = FPF' + GQG'
-        // F矩阵的行顺序为：α，θ，β，b_a, b_w
-        // 这部分推导参考代码中comments文件中1.2 误差状态方程推导部分
+        // F矩阵的行顺序为：P, Q, V, Ba, Bg
         if(update_jacobian)
         {
             Vector3d w_x   = 0.5 * (_gyr_0 + _gyr_1) - linearized_bg;
@@ -160,7 +147,6 @@ class IntegrationBase
             F.block<3, 3>(6, 12)  = -0.5 * result_delta_q.toRotationMatrix() * R_a_1_x * _dt * -_dt;
             F.block<3, 3>(9, 9)   = Matrix3d::Identity();
             F.block<3, 3>(12, 12) = Matrix3d::Identity();
-            //cout<<"A"<<endl<<A<<endl;
 
             MatrixXd V = MatrixXd::Zero(15,18);
             V.block<3, 3>(0, 0) =  0.25 * delta_q.toRotationMatrix() * _dt * _dt;

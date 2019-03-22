@@ -235,10 +235,10 @@ bool Estimator::initialStructure()
 {
     TicToc t_sfm;
 
-    //! Step1：通过计算预积分加速度的标准差，检测IMU的可观性
+    //! 通过计算预积分加速度的标准差，检测IMU的可观性
     //check imu observibility
     {
-        //! 计算均值
+        // 计算均值
         map<double, ImageFrame>::iterator frame_it;
         Vector3d sum_g;
         for (frame_it = all_image_frame.begin(), frame_it++; frame_it != all_image_frame.end(); frame_it++)
@@ -249,7 +249,7 @@ bool Estimator::initialStructure()
         }
         Vector3d aver_g = sum_g * 1.0 / ((int)all_image_frame.size() - 1);
 
-        //! 计算方差
+        // 计算方差
         double var = 0;
         for (frame_it = all_image_frame.begin(), frame_it++; frame_it != all_image_frame.end(); frame_it++)
         {
@@ -258,7 +258,7 @@ bool Estimator::initialStructure()
             var += (tmp_g - aver_g).transpose() * (tmp_g - aver_g);
         }
 
-        //! 计算标准差
+        // 计算标准差
         var = sqrt(var / ((int)all_image_frame.size() - 1));
         //ROS_WARN("IMU variation %f!", var);
         if(var < 0.25) //! 以标准差判断可观性
@@ -268,9 +268,9 @@ bool Estimator::initialStructure()
         }
     }
 
-    //! Step2：滑窗内全局的SFM (global sfm)
+    //! 滑窗内全局的SFM (global sfm)
 
-    //! Step2.1:遍历滑窗内所有的Features，以vector<SFMFeature>形式保存滑窗内所有特征点
+    // 遍历滑窗内所有的Features，以vector<SFMFeature>形式保存滑窗内所有特征点
     vector<SFMFeature> sfm_f;
     for (auto &it_per_id : f_manager.feature)
     {
@@ -288,8 +288,8 @@ bool Estimator::initialStructure()
         sfm_f.push_back(tmp_feature);
     }
 
-    //! Step2.2 求取滑窗内与当前帧共视关系较强的关键帧，来三角化滑窗内的3D点
-    //! T:  当前帧到共视帧  now ===> l
+    // 在滑窗内寻找与当前帧的匹配特征点数较多的关键帧作为参考帧, 并通过求基础矩阵
+    // T:  当前帧到共视帧  now ===> l
     Matrix3d relative_R;
     Vector3d relative_T;
     int l;
@@ -299,7 +299,7 @@ bool Estimator::initialStructure()
         return false;
     }
 
-    //! Step2.3 三角化恢复滑窗内的Features
+    // 三角化恢复滑窗内的Features
     GlobalSFM sfm;
     Quaterniond Q[frame_count + 1];
     Vector3d    T[frame_count + 1];
@@ -330,7 +330,7 @@ bool Estimator::initialStructure()
             i++;
         }
 
-        //! 将滑窗内第i帧的变换矩阵当做初始值
+        // 将滑窗内第i帧的变换矩阵当做初始值
         Matrix3d R_inital = (Q[i].inverse()).toRotationMatrix();
         Vector3d P_inital = - R_inital * T[i];
         cv::Mat rvec, t, tmp_r;
@@ -374,22 +374,26 @@ bool Estimator::initialStructure()
             return false;
         }
 
-        cv::Mat r;
-        cv::Rodrigues(rvec, r);
-        MatrixXd tmp_R_pnp;
-        cv::cv2eigen(r, tmp_R_pnp);
-        MatrixXd R_pnp = tmp_R_pnp.transpose();
-
+        // PnP求解出的位姿要取逆
+        MatrixXd R_pnp;
         MatrixXd T_pnp;
-        cv::cv2eigen(t, T_pnp);
-        T_pnp = R_pnp * (-T_pnp); //! PnP求解出的位姿要取逆
+        {
+            cv::Mat r;
+            cv::Rodrigues(rvec, r);
+            MatrixXd tmp_R_pnp;
+            cv::cv2eigen(r, tmp_R_pnp);
+            R_pnp = tmp_R_pnp.transpose();
 
-        //! 转换到IMU坐标系下
+            cv::cv2eigen(t, T_pnp);
+            T_pnp = R_pnp * (-T_pnp);
+        }
+
+        // 转换到IMU坐标系下
         frame_it->second.R = R_pnp * RIC[0].transpose();
         frame_it->second.T = T_pnp;
     }
 
-    //! 视觉与IMU对齐
+    // 视觉与IMU对齐
     if (visualInitialAlign())
         return true;
     else
@@ -913,10 +917,10 @@ void Estimator::optimization()
      * 而且当MAV进行一些退化运动(如: 匀速运动)时, 没有历史信息做约束的话是无法求解的.
      * 所以, 在移出位姿或特征的时候, 需要将相关联的约束转变成一个约束项作为prior放到优化问题中. 这就是marginalization要做的事情
      *
-     * MARGIN_OLD: 如果当前帧是关键帧，则丢弃滑动窗口内最老的图像帧，同时对与该图像帧关联的约束项进行边缘化处理。
+     * MARGIN_OLD: 如果次新帧是关键帧，则丢弃滑动窗口内最老的图像帧，同时对与该图像帧关联的约束项进行边缘化处理。
      * 这里需要注意的是，如果该关键帧是观察到某个地图点的第一帧，则需要把该地图点的深度转移到后面的图像帧中去。
      *
-     * MARGIN_NEW: 如果当前帧不是关键帧，则丢弃当前帧的前一帧。因为判定当前帧不是关键帧的条件就是当前帧与前一帧视差很小，也就是说当前帧和前一帧很相似，
+     * MARGIN_NEW: 如果次新帧不是关键帧，则丢弃当前帧的前一帧。因为判定当前帧不是关键帧的条件就是当前帧与前一帧视差很小，也就是说当前帧和前一帧很相似，
      * 这种情况下直接丢弃前一帧，然后用当前帧代替前一帧。为什么这里可以不对前一帧进行边缘化，而是直接丢弃，原因就是当前帧和前一帧很相似，
      * 因此当前帧与地图点之间的约束和前一帧与地图点之间的约束是很接近的，直接丢弃并不会造成整个约束关系丢失信息。这里需要注意的是，
      * 要把当前帧和前一帧之间的 IMU 预积分转换为当前帧和前二帧之间的 IMU 预积分。

@@ -22,12 +22,12 @@ bool InitialEXRotation::CalibrationExRotation(
         Quaterniond delta_q_imu,
         Matrix3d &calib_ric_result)
 {
-    //! 滑窗内的帧数加1
+    // 滑窗内的帧数加1
     frame_count++;
 
     Rc.push_back(solveRelativeR(corres));
     Rimu.push_back(delta_q_imu.toRotationMatrix());
-    Rc_g.push_back(ric.inverse() * delta_q_imu * ric); //! 计算两帧之间的旋转矩阵
+    Rc_g.push_back(ric.inverse() * delta_q_imu * ric); // 计算两帧之间的旋转矩阵
 
     Eigen::MatrixXd A(frame_count * 4, 4);
     A.setZero();
@@ -36,16 +36,16 @@ bool InitialEXRotation::CalibrationExRotation(
         Quaterniond r1(Rc[i]);
         Quaterniond r2(Rc_g[i]);
 
-        //! 求取估计出的相机与IMU之间旋转的残差
+        // 求取估计出的相机与IMU之间旋转的残差
         double angular_distance = 180 / M_PI * r1.angularDistance(r2);
         ROS_DEBUG("%d %f", i, angular_distance);
 
-        //! 计算外点剔除的权重
+        // 计算外点剔除的权重
         double huber = angular_distance > 5.0 ? 5.0 / angular_distance : 1.0;
 
         Matrix4d L, R;
 
-        //! 相机对极关系得到的旋转q的左乘
+        // 相机对极关系得到的旋转q的左乘
         double   w = Quaterniond(Rc[i]).w();
         Vector3d q = Quaterniond(Rc[i]).vec();
         L.block<3, 3>(0, 0) =  w * Matrix3d::Identity() + Utility::skewSymmetric(q);
@@ -53,7 +53,7 @@ bool InitialEXRotation::CalibrationExRotation(
         L.block<1, 3>(3, 0) = -q.transpose();
         L(3, 3) = w;
 
-        //! 由IMU预积分得到的旋转q的右乘
+        // 由IMU预积分得到的旋转q的右乘
         Quaterniond R_ij(Rimu[i]);
         w = R_ij.w();
         q = R_ij.vec();
@@ -65,7 +65,7 @@ bool InitialEXRotation::CalibrationExRotation(
         A.block<4, 4>((i - 1) * 4, 0) = huber * (L - R);
     }
 
-    //! 通过SVD分解，求取相机与IMU的相对旋转，解为系数矩阵A的右奇异向量V中最小奇异值对应的特征向量
+    // 通过SVD分解，求取相机与IMU的相对旋转，解为系数矩阵A的右奇异向量V中最小奇异值对应的特征向量
     JacobiSVD<MatrixXd> svd(A, ComputeFullU | ComputeFullV);
 
     Matrix<double, 4, 1> x = svd.matrixV().col(3);

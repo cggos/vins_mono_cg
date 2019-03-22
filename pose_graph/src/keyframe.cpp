@@ -15,27 +15,31 @@ KeyFrame::KeyFrame(double _time_stamp, int _index, Vector3d &_vio_T_w_i, Matrix3
 		           vector<cv::Point3f> &_point_3d, vector<cv::Point2f> &_point_2d_uv, vector<cv::Point2f> &_point_2d_norm,
 		           vector<double> &_point_id, int _sequence)
 {
-	time_stamp = _time_stamp;
-	index = _index;
-	vio_T_w_i = _vio_T_w_i;
-	vio_R_w_i = _vio_R_w_i;
-	T_w_i = vio_T_w_i;
-	R_w_i = vio_R_w_i;
-	origin_vio_T = vio_T_w_i;		
-	origin_vio_R = vio_R_w_i;
-	image = _image.clone();
-	cv::resize(image, thumbnail, cv::Size(80, 60));
-	point_3d = _point_3d;
-	point_2d_uv = _point_2d_uv;
-	point_2d_norm = _point_2d_norm;
-	point_id = _point_id;
-	has_loop = false;
-	loop_index = -1;
+	time_stamp     = _time_stamp;
+	index          = _index;
+	vio_T_w_i      = _vio_T_w_i;
+	vio_R_w_i      = _vio_R_w_i;
+	T_w_i          = vio_T_w_i;
+	R_w_i          = vio_R_w_i;
+	origin_vio_T   = vio_T_w_i;
+	origin_vio_R   = vio_R_w_i;
+	image          = _image.clone();
+	point_3d       = _point_3d;
+	point_2d_uv    = _point_2d_uv;
+	point_2d_norm  = _point_2d_norm;
+	point_id       = _point_id;
+	has_loop       = false;
+	loop_index     = -1;
 	has_fast_point = false;
-	loop_info << 0, 0, 0, 0, 0, 0, 0, 0;
-	sequence = _sequence;
-	computeWindowBRIEFPoint();
+    sequence       = _sequence;
+
+    loop_info << 0, 0, 0, 0, 0, 0, 0, 0;
+
+    cv::resize(image, thumbnail, cv::Size(80, 60));
+
+    computeWindowBRIEFPoint();
 	computeBRIEFPoint();
+
 	if(!DEBUG_IMAGE)
 		image.release();
 }
@@ -255,7 +259,12 @@ void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
 
 }
 
-
+/**
+ * @brief 得到当前帧和回环帧之间的回环约束
+ * @details 通过计算当前帧角点描述子和回环帧的角点描述子之间的汉明距离，得到最佳的角点匹配
+ * @param old_kf
+ * @return
+ */
 bool KeyFrame::findConnection(KeyFrame* old_kf)
 {
 	TicToc tmp_t;
@@ -485,8 +494,12 @@ bool KeyFrame::findConnection(KeyFrame* old_kf)
 	    	loop_info << relative_t.x(), relative_t.y(), relative_t.z(),
 	    	             relative_q.w(), relative_q.x(), relative_q.y(), relative_q.z(),
 	    	             relative_yaw;
+			// 快速重定位功能，当检测到回环约束时，直接将回环检测的约束返回给 vins_estimator 进行快速的重定位
 	    	if(FAST_RELOCALIZATION)
 	    	{
+                //msg_match_points 是发送给 estimator 的匹配信息
+                //points 里是匹配到的角点的归一化坐标和该地图点的id
+                //channels 是回环帧的 pose
 			    sensor_msgs::PointCloud msg_match_points;
 			    msg_match_points.header.stamp = ros::Time(time_stamp);
 			    for (int i = 0; i < (int)matched_2d_old_norm.size(); i++)
@@ -586,7 +599,8 @@ BriefExtractor::BriefExtractor(const std::string &pattern_file)
 
   // loads the pattern
   cv::FileStorage fs(pattern_file.c_str(), cv::FileStorage::READ);
-  if(!fs.isOpened()) throw string("Could not open file ") + pattern_file;
+  if(!fs.isOpened())
+      throw string("Could not open file ") + pattern_file;
 
   vector<int> x1, y1, x2, y2;
   fs["x1"] >> x1;

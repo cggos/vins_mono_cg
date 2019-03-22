@@ -28,11 +28,11 @@ struct ResidualBlockInfo
     ceres::CostFunction *cost_function;
     ceres::LossFunction *loss_function;
     std::vector<double *> parameter_blocks;
-    std::vector<int> drop_set;
+    std::vector<int> drop_set; // 待marg的优化变量id
 
     double **raw_jacobians;
     std::vector<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> jacobians;
-    Eigen::VectorXd residuals;
+    Eigen::VectorXd residuals; // 残差,IMU:15×1,视觉:2×1
 
     int localSize(int size) {
         return size == 7 ? 6 : size;
@@ -60,6 +60,8 @@ class MarginalizationInfo
     std::vector<double *> getParameterBlocks(std::unordered_map<long, double *> &addr_shift);
 
     std::vector<ResidualBlockInfo *> factors;
+    // m为要marg掉的变量个数,也就是parameter_block_idx的总localSize,以double为单位,VBias为9,PQ为6,
+    // n为要保留下的优化变量的变量个数，n=localSize(parameter_block_size) – m
     int m, n;
     std::unordered_map<long, int> parameter_block_size; //global size
     int sum_block_size;

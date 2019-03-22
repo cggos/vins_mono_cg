@@ -24,9 +24,9 @@
 #define SKIP_FIRST_CNT 10
 using namespace std;
 
-queue<sensor_msgs::ImageConstPtr> image_buf;
-queue<sensor_msgs::PointCloudConstPtr> point_buf;
-queue<nav_msgs::Odometry::ConstPtr> pose_buf;
+queue<sensor_msgs::ImageConstPtr> image_buf;      // 原始图像数据
+queue<sensor_msgs::PointCloudConstPtr> point_buf; // 世界坐标系下的地图点坐标，该地图点在最新图像帧中的归一化坐标，图像坐标和feature id
+queue<nav_msgs::Odometry::ConstPtr> pose_buf;     // 当前帧的 pose
 queue<Eigen::Vector3d> odometry_buf;
 std::mutex m_buf;
 std::mutex m_process;
@@ -389,8 +389,8 @@ void process()
                     cv::Point2f p_2d_uv, p_2d_normal;
                     p_2d_normal.x = point_msg->channels[i].values[0];
                     p_2d_normal.y = point_msg->channels[i].values[1];
-                    p_2d_uv.x = point_msg->channels[i].values[2];
-                    p_2d_uv.y = point_msg->channels[i].values[3];
+                    p_2d_uv.x     = point_msg->channels[i].values[2];
+                    p_2d_uv.y     = point_msg->channels[i].values[3];
 
                     double p_id = point_msg->channels[i].values[4];
 
