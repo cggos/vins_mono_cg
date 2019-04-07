@@ -13,18 +13,20 @@ VINS-Mono uses an optimization-based sliding window formulation for providing hi
 
 # Build
 
-```
-catkin_make
+```bash
+catkin_make -j2
+# or
+catkin build
 ```
 
 # Run
 
 * with Dataset
 
-  - MH_01_easy.bag
+  - EuRoC MAV dataset MH_01_easy.bag
   ```sh
   roslaunch vins_estimator euroc.launch
-  rosbag play YOUR_PATH_TO_DATASET/MH_01_easy.bag
+  rosbag play <YOUR_PATH_TO_DATASET>/MH_01_easy.bag
   ```
 
 * with live camera
@@ -34,7 +36,30 @@ catkin_make
   roslaunch maplab_realsense maplab_realsense.launch
   roslaunch vins_estimator realsense_fisheye.launch
   ```
-  
+
+# Evaluation
+
+Evaluate the output trajectory **vins_result_loop.tum** with **ground truth** trajectory in the standard dataset (e.g. for EuRoC MAV dataset, the ground truth file is `<sequence>/mav0/state_groundtruth_estimate0/data.csv` ) using the **[evo](https://michaelgrupp.github.io/evo/)** tools.
+
+1. copy the ground truth file **data.csv** to the directory as same to **vins_result_loop.tum**  
+2. get **data.tum** by `evo_traj euroc data.csv --save_as_tum`
+3. evaluate by `evo_ape tum data.tum vins_result_loop.tum --align --plot`
+4. get results
+
+    ```
+    APE w.r.t. translation part (m)
+    (with SE(3) Umeyama alignment)
+         max	0.157368
+        mean	0.081223
+      median	0.076672
+         min	0.021434
+        rmse	0.086200
+         sse	7.809322
+         std	0.028865
+    ```
+    <div align=center>
+      <img src="./images/vins_euroc_ape.jpg">
+    </div>
 
 # Tutorial
 
