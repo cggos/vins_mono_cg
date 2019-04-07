@@ -495,7 +495,7 @@ int main(int argc, char **argv)
         LOAD_PREVIOUS_POSE_GRAPH = fsSettings["load_previous_pose_graph"];
         FAST_RELOCALIZATION      = fsSettings["fast_relocalization"];
 
-        VINS_RESULT_PATH = VINS_RESULT_PATH + "/vins_result_loop.csv";
+        VINS_RESULT_PATH = VINS_RESULT_PATH + "/vins_result_loop.tum";
 
         fsSettings.release();
 
