@@ -29,17 +29,17 @@ int main(int argc, char** argv)
     boost::program_options::options_description desc("Allowed options");
     desc.add_options()
         ("help", "produce help message")
-        ("width,w", boost::program_options::value<int>(&boardSize.width)->default_value(8), "Number of inner corners on the chessboard pattern in x direction")
-        ("height,h", boost::program_options::value<int>(&boardSize.height)->default_value(12), "Number of inner corners on the chessboard pattern in y direction")
-        ("size,s", boost::program_options::value<float>(&squareSize)->default_value(7.f), "Size of one square in mm")
-        ("input,i", boost::program_options::value<std::string>(&inputDir)->default_value("calibrationdata"), "Input directory containing chessboard images")
-        ("prefix,p", boost::program_options::value<std::string>(&prefix)->default_value("left-"), "Prefix of images")
+        ("width,w",          boost::program_options::value<int>(&boardSize.width)->default_value(8),   "Number of inner corners on the chessboard pattern in x direction")
+        ("height,h",         boost::program_options::value<int>(&boardSize.height)->default_value(12), "Number of inner corners on the chessboard pattern in y direction")
+        ("size,s",           boost::program_options::value<float>(&squareSize)->default_value(7.f), "Size of one square in mm")
+        ("input,i",          boost::program_options::value<std::string>(&inputDir)->default_value("calibrationdata"), "Input directory containing chessboard images")
+        ("prefix,p",         boost::program_options::value<std::string>(&prefix)->default_value("left-"), "Prefix of images")
         ("file-extension,e", boost::program_options::value<std::string>(&fileExtension)->default_value(".png"), "File extension of images")
-        ("camera-model", boost::program_options::value<std::string>(&cameraModel)->default_value("mei"), "Camera model: kannala-brandt | mei | pinhole")
-        ("camera-name", boost::program_options::value<std::string>(&cameraName)->default_value("camera"), "Name of camera")
-        ("opencv", boost::program_options::bool_switch(&useOpenCV)->default_value(true), "Use OpenCV to detect corners")
-        ("view-results", boost::program_options::bool_switch(&viewResults)->default_value(false), "View results")
-        ("verbose,v", boost::program_options::bool_switch(&verbose)->default_value(true), "Verbose output")
+        ("camera-model",     boost::program_options::value<std::string>(&cameraModel)->default_value("mei"), "Camera model: kannala-brandt | mei | pinhole")
+        ("camera-name",      boost::program_options::value<std::string>(&cameraName)->default_value("camera"), "Name of camera")
+        ("opencv",           boost::program_options::bool_switch(&useOpenCV)->default_value(true), "Use OpenCV to detect corners")
+        ("view-results",     boost::program_options::bool_switch(&viewResults)->default_value(false), "View results")
+        ("verbose,v",        boost::program_options::bool_switch(&verbose)->default_value(true), "Verbose output")
         ;
 
     boost::program_options::positional_options_description pdesc;
@@ -121,11 +121,11 @@ int main(int argc, char** argv)
             }
         }
 
-        // check if file extension matches
-        if (filename.compare(filename.length() - fileExtension.length(), fileExtension.length(), fileExtension) != 0)
-        {
-            continue;
-        }
+        // // check if file extension matches
+        // if (filename.compare(filename.length() - fileExtension.length(), fileExtension.length(), fileExtension) != 0)
+        // {
+        //     continue;
+        // }
 
         imageFilenames.push_back(itr->path().string());
 
