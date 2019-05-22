@@ -11,6 +11,8 @@ VINS-Mono uses an optimization-based sliding window formulation for providing hi
 
 -----
 
+[TOC]
+
 # Build
 
 ```bash
@@ -36,6 +38,18 @@ catkin build
   roslaunch maplab_realsense maplab_realsense.launch
   roslaunch vins_estimator realsense_fisheye.launch
   ```
+
+## with Docker
+
+* make sure **ROS** and **docker** are installed on your machine
+* add your account to **docker group** by `sudo usermod -aG docker $YOUR_USER_NAME`
+* run
+  ```sh
+  cd docker
+  make build
+  ./run.sh LAUNCH_FILE_NAME   # ./run.sh euroc.launch
+  ```
+* modified the code, simply run `./run.sh LAUNCH_FILE_NAME` after your changes
 
 # Evaluation
 
@@ -65,7 +79,6 @@ Evaluate the output trajectory **vins_result_loop.tum** with **ground truth** tr
 
 * [VINS-Mono代码分析总结](https://www.zybuluo.com/Xiaobuyi/note/866099) by Xiaobuyi
 * [VINS-Mono issues 14](https://github.com/HKUST-Aerial-Robotics/VINS-Mono/issues/14): Question about mid-point integration in integration_base.h
-
 
 # Related Code
 
