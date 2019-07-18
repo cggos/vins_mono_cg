@@ -13,6 +13,12 @@ VINS-Mono uses an optimization-based sliding window formulation for providing hi
 
 [TOC]
 
+# Prerequisites
+
+* ROS Kinetic & Ubuntu 16.04
+* Eigen 3.3.3
+* [Ceres Solver](http://ceres-solver.org/installation.html)
+
 # Build
 
 ```bash
