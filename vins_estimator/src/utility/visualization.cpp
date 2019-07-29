@@ -71,7 +71,7 @@ void printStatistics(const Estimator &estimator, double t) {
     if (estimator.solver_flag != Estimator::SolverFlag::NON_LINEAR)
         return;
 
-    printf("position: %f, %f, %f\r\n", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
+    // printf("position: %f, %f, %f\r\n", estimator.Ps[WINDOW_SIZE].x(), estimator.Ps[WINDOW_SIZE].y(), estimator.Ps[WINDOW_SIZE].z());
     ROS_DEBUG_STREAM("position: "    << estimator.Ps[WINDOW_SIZE].transpose());
     ROS_DEBUG_STREAM("orientation: " << estimator.Vs[WINDOW_SIZE].transpose());
 
