@@ -1,6 +1,6 @@
 <launch>
     <arg name="rviz" default="true" />
-    <arg name="config_path" default = "$(find feature_tracker)/../config/mynteye/mynteye_mono_config.yaml" />
+    <arg name="config_path" default = "$(find feature_tracker)/../config/mynteye/mynteye_s1030_mono_config.yaml" />
 	  <arg name="vins_path" default = "$(find feature_tracker)/../config/../" />
     
     <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log">
