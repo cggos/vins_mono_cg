@@ -29,17 +29,27 @@ catkin build
 
 # Run
 
-* with Dataset
+## with Dataset
 
-  - EuRoC MAV dataset MH_01_easy.bag
+* EuRoC MAV dataset MH_01_easy.bag
   ```sh
   roslaunch vins_estimator euroc.launch
   rosbag play <YOUR_PATH_TO_DATASET>/MH_01_easy.bag
   ```
 
-* with live camera
+## with live camera
 
-  - [Ubuntu 16.04 下 VINS-Mono 的安装和使用(RealSense ZR300)](https://blog.csdn.net/u011178262/article/details/88086952)
+* with MYNTEYE-S1030
+  ```sh
+  roslaunch mynt_eye_ros_wrapper mynteye.launch
+  roslaunch vins_estimator mynteye_s1030_mono.launch
+  ```
+
+  <div align=center>
+    <img src="./images/vins_mono_mynteye_s1030_mono.jpg">
+  </div>
+
+* [Ubuntu 16.04 下 VINS-Mono 的安装和使用(RealSense ZR300)](https://blog.csdn.net/u011178262/article/details/88086952)
   ```sh
   roslaunch maplab_realsense maplab_realsense.launch
   roslaunch vins_estimator realsense_fisheye.launch
