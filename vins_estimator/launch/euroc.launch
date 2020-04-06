@@ -1,7 +1,7 @@
 <launch>
     <arg name="rviz" default="true" />
     <arg name="config_path" default = "$(find feature_tracker)/../config/euroc/euroc_config.yaml" />
-	  <arg name="vins_path" default = "$(find feature_tracker)/../config/../" />
+	<arg name="vins_path"   default = "$(find feature_tracker)/../config/../" />
 
     <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log">
         <param name="config_file" type="string" value="$(arg config_path)" />

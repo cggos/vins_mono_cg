@@ -26,4 +26,16 @@ class ImageFrame
         bool is_key_frame;
 };
 
+/**
+ * @brief 视觉与IMU对齐，主要解决三个问题:
+ *        1) 修正陀螺仪的bias
+ *        2）初始化速度、重力向量g和尺度因子(Metric scale)
+ *        3) 改进重力向量的量值
+ *
+ * @param all_image_frame
+ * @param Bgs
+ * @param g
+ * @param x
+ * @return
+ */
 bool VisualIMUAlignment(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs, Vector3d &g, VectorXd &x);

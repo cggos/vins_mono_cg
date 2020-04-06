@@ -9,16 +9,19 @@
 
 #include <ceres/ceres.h>
 
-/// 15: 残差向量的长度(p,v,q,ba,bg)
-///  7: 第1个优化参数的长度(para_Pose[i])
-///  9: 第2个优化参数的长度(para_SpeedBias[i])
-///  7: 第3个优化参数的长度(para_Pose[j])
-///  9: 第4个优化参数的长度(para_SpeedBias[j])
+/**
+ * @brief 
+ *     15: 残差向量的长度(p,v,q,ba,bg)
+ *      7: 第1个优化参数的长度(para_Pose[i])
+ *      9: 第2个优化参数的长度(para_SpeedBias[i])
+ *      7: 第3个优化参数的长度(para_Pose[j])
+ *      9: 第4个优化参数的长度(para_SpeedBias[j])
+ */
 class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 {
   public:
     IMUFactor() = delete;
-    IMUFactor(IntegrationBase* _pre_integration):pre_integration(_pre_integration) {}
+    IMUFactor(IntegrationBase* _pre_integration) : pre_integration(_pre_integration) {}
 
     virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
     {
@@ -55,7 +58,6 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
                 Eigen::LLT<Eigen::Matrix<double, 15, 15>>(pre_integration->covariance.inverse()).matrixL().transpose();
         //sqrt_info.setIdentity();
 
-        //! question(cg): residual 乘以 sqrt_info，为什么
         // 这是因为真正的优化项其实是 Mahalanobis 距离: $d = r^T P^{-1} r$, P是协方差,
         // Mahalanobis距离 其实相当于一个残差加权, 协方差大的加权小, 协方差小的加权大, 着重优化那些比较确定的残差
         // 而 ceres只接受最小二乘优化, 也就是 $min e^T e$, 所以把 $P^{-1}$ 做 LLT分解, 即 $LL^T=P^{−1}$
@@ -76,8 +78,6 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
 
             if (pre_integration->jacobian.maxCoeff() > 1e8 || pre_integration->jacobian.minCoeff() < -1e8) {
                 ROS_WARN("numerical unstable in preintegration");
-                //std::cout << pre_integration->jacobian << std::endl;
-///                ROS_BREAK();
             }
 
             if (jacobians[0]) {
@@ -122,8 +122,7 @@ class IMUFactor : public ceres::SizedCostFunction<15, 7, 9, 7, 9>
                 //jacobian_speedbias_i.block<3, 3>(O_R, O_BG - O_V) =
                 //      -Utility::Qleft(Qj.inverse() * Qi * corrected_delta_q).bottomRightCorner<3, 3>() * dq_dbg;
                 jacobian_speedbias_i.block<3, 3>(O_R, O_BG - O_V) =
-                        -Utility::Qleft(Qj.inverse() * Qi * pre_integration->delta_q).bottomRightCorner<3, 3>() *
-                        dq_dbg;
+                        -Utility::Qleft(Qj.inverse() * Qi * pre_integration->delta_q).bottomRightCorner<3, 3>() * dq_dbg;
 #endif
 
                 jacobian_speedbias_i.block<3, 3>(O_V,  O_V  - O_V) = -Qi.inverse().toRotationMatrix();

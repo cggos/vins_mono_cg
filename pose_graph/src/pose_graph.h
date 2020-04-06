@@ -100,38 +100,32 @@ class AngleLocalParameterization {
  public:
 
   template <typename T>
-  bool operator()(const T* theta_radians, const T* delta_theta_radians,
-                  T* theta_radians_plus_delta) const {
-    *theta_radians_plus_delta =
-        NormalizeAngle(*theta_radians + *delta_theta_radians);
-
+  bool operator()(const T* theta_radians, const T* delta_theta_radians, T* theta_radians_plus_delta) const {
+    *theta_radians_plus_delta = NormalizeAngle(*theta_radians + *delta_theta_radians);
     return true;
   }
 
   static ceres::LocalParameterization* Create() {
-    return (new ceres::AutoDiffLocalParameterization<AngleLocalParameterization,
-                                                     1, 1>);
+    return (new ceres::AutoDiffLocalParameterization<AngleLocalParameterization, 1, 1>);
   }
 };
 
 template <typename T> 
 void YawPitchRollToRotationMatrix(const T yaw, const T pitch, const T roll, T R[9])
 {
-
-	T y = yaw / T(180.0) * T(M_PI);
+	T y = yaw   / T(180.0) * T(M_PI);
 	T p = pitch / T(180.0) * T(M_PI);
-	T r = roll / T(180.0) * T(M_PI);
+	T r = roll  / T(180.0) * T(M_PI);
 
-
-	R[0] = cos(y) * cos(p);
+	R[0] =  cos(y) * cos(p);
 	R[1] = -sin(y) * cos(r) + cos(y) * sin(p) * sin(r);
-	R[2] = sin(y) * sin(r) + cos(y) * sin(p) * cos(r);
-	R[3] = sin(y) * cos(p);
-	R[4] = cos(y) * cos(r) + sin(y) * sin(p) * sin(r);
+	R[2] =  sin(y) * sin(r) + cos(y) * sin(p) * cos(r);
+	R[3] =  sin(y) * cos(p);
+	R[4] =  cos(y) * cos(r) + sin(y) * sin(p) * sin(r);
 	R[5] = -cos(y) * sin(r) + sin(y) * sin(p) * cos(r);
 	R[6] = -sin(p);
-	R[7] = cos(p) * sin(r);
-	R[8] = cos(p) * cos(r);
+	R[7] =  cos(p) * sin(r);
+	R[8] =  cos(p) * cos(r);
 };
 
 template <typename T> 
@@ -191,13 +185,11 @@ struct FourDOFError
 									   const double relative_yaw, const double pitch_i, const double roll_i) 
 	{
 	  return (new ceres::AutoDiffCostFunction<
-	          FourDOFError, 4, 1, 3, 1, 3>(
-	          	new FourDOFError(t_x, t_y, t_z, relative_yaw, pitch_i, roll_i)));
+	          FourDOFError, 4, 1, 3, 1, 3>(new FourDOFError(t_x, t_y, t_z, relative_yaw, pitch_i, roll_i)));
 	}
 
 	double t_x, t_y, t_z;
 	double relative_yaw, pitch_i, roll_i;
-
 };
 
 struct FourDOFWeightError
@@ -237,12 +229,10 @@ struct FourDOFWeightError
 									   const double relative_yaw, const double pitch_i, const double roll_i) 
 	{
 	  return (new ceres::AutoDiffCostFunction<
-	          FourDOFWeightError, 4, 1, 3, 1, 3>(
-	          	new FourDOFWeightError(t_x, t_y, t_z, relative_yaw, pitch_i, roll_i)));
+	          FourDOFWeightError, 4, 1, 3, 1, 3>(new FourDOFWeightError(t_x, t_y, t_z, relative_yaw, pitch_i, roll_i)));
 	}
 
 	double t_x, t_y, t_z;
 	double relative_yaw, pitch_i, roll_i;
 	double weight;
-
 };

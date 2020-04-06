@@ -417,7 +417,7 @@ void PoseGraph::optimize4DoF()
         m_optimize_buf.unlock();
         if (cur_index != -1)
         {
-            ROS_INFO("=== optimize pose graph");
+            printf("[cggos %s]\n", __FUNCTION__);
 
             TicToc tmp_t;
             m_keyframelist.lock();
@@ -590,12 +590,6 @@ void PoseGraph::updatePath()
     }
     base_path.poses.clear();
     posegraph_visualization->reset();
-
-    if (SAVE_LOOP_PATH)
-    {
-        ofstream loop_path_file_tmp(VINS_RESULT_PATH, ios::out);
-        loop_path_file_tmp.close();
-    }
 
     for (it = keyframelist.begin(); it != keyframelist.end(); it++)
     {

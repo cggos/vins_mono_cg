@@ -51,7 +51,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     {
         PUB_THIS_FRAME = true;
         // reset the frequency control
-        if (abs(tmp_freq - FREQ) < 0.01 * FREQ)
+        if (abs(tmp_freq - FREQ) < 0.01 * FREQ) // [cggos] why
         {
             first_image_time = img_msg->header.stamp.toSec();
             pub_count = 0;

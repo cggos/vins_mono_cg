@@ -227,10 +227,7 @@ void process()
         std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
 
         std::unique_lock<std::mutex> lk(m_buf);
-        con.wait(lk, [&]
-        {
-            return (measurements = getMeasurements()).size() != 0;
-        });
+        con.wait(lk, [&]{return (measurements = getMeasurements()).size() != 0;});
         lk.unlock();
 
         m_estimator.lock();

@@ -45,7 +45,8 @@ void solveGyroscopeBias(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs)
     }
 
     Vector3d delta_bg = A.ldlt().solve(b);
-    ROS_WARN_STREAM("gyroscope bias initial calibration " << delta_bg.transpose());
+
+    std::cout << "[cggos " << __FUNCTION__ << "] gyroscope bias initial calibration: " << delta_bg.transpose() << std::endl;
 
     // 因为求解出的Bias是变化量，所以要累加
     // question：这个地方滑窗内的累加深入理解
@@ -188,7 +189,7 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
 
         tmp_A.block<3, 3>(0, 0) = -dt * Matrix3d::Identity();
         tmp_A.block<3, 3>(0, 6) = frame_i->second.R.transpose() * dt * dt / 2 * Matrix3d::Identity();
-        tmp_A.block<3, 1>(0, 9) = frame_i->second.R.transpose() * (frame_j->second.T - frame_i->second.T) / 100.0;
+        tmp_A.block<3, 1>(0, 9) = frame_i->second.R.transpose() * (frame_j->second.T - frame_i->second.T) / 100.0; // [cggos]: why
         tmp_b.block<3, 1>(0, 0) = frame_j->second.pre_integration->delta_p +
                                   frame_i->second.R.transpose() * frame_j->second.R * TIC[0] - TIC[0];
 
@@ -204,8 +205,6 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
 
         MatrixXd r_A = tmp_A.transpose() * cov_inv * tmp_A;
         VectorXd r_b = tmp_A.transpose() * cov_inv * tmp_b;
-
-        /// question(cg): why
 
         A.block<6, 6>(i * 3, i * 3) += r_A.topLeftCorner<6, 6>();
         b.segment<6> (i * 3)        += r_b.head<6>();
@@ -244,18 +243,6 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
     return (s >= 0.0);
 }
 
-/**
- * @brief 视觉与IMU对齐，主要解决三个问题:
- *        1) 修正陀螺仪的bias
- *        2）初始化速度、重力向量g和尺度因子(Metric scale)
- *        3) 改进重力向量的量值
- *
- * @param all_image_frame
- * @param Bgs
- * @param g
- * @param x
- * @return
- */
 bool VisualIMUAlignment(map<double, ImageFrame> &all_image_frame, Vector3d* Bgs, Vector3d &g, VectorXd &x) {
     // 陀螺仪Bias修正
     solveGyroscopeBias(all_image_frame, Bgs);

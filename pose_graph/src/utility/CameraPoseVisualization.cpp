@@ -4,10 +4,10 @@ const Eigen::Vector3d CameraPoseVisualization::imlt = Eigen::Vector3d(-1.0, -0.5
 const Eigen::Vector3d CameraPoseVisualization::imrt = Eigen::Vector3d( 1.0, -0.5, 1.0);
 const Eigen::Vector3d CameraPoseVisualization::imlb = Eigen::Vector3d(-1.0,  0.5, 1.0);
 const Eigen::Vector3d CameraPoseVisualization::imrb = Eigen::Vector3d( 1.0,  0.5, 1.0);
-const Eigen::Vector3d CameraPoseVisualization::lt0 = Eigen::Vector3d(-0.7, -0.5, 1.0);
-const Eigen::Vector3d CameraPoseVisualization::lt1 = Eigen::Vector3d(-0.7, -0.2, 1.0);
-const Eigen::Vector3d CameraPoseVisualization::lt2 = Eigen::Vector3d(-1.0, -0.2, 1.0);
-const Eigen::Vector3d CameraPoseVisualization::oc = Eigen::Vector3d(0.0, 0.0, 0.0);
+const Eigen::Vector3d CameraPoseVisualization::lt0  = Eigen::Vector3d(-0.7, -0.5, 1.0);
+const Eigen::Vector3d CameraPoseVisualization::lt1  = Eigen::Vector3d(-0.7, -0.2, 1.0);
+const Eigen::Vector3d CameraPoseVisualization::lt2  = Eigen::Vector3d(-1.0, -0.2, 1.0);
+const Eigen::Vector3d CameraPoseVisualization::oc   = Eigen::Vector3d( 0.0,  0.0, 0.0);
 
 void Eigen2Point(const Eigen::Vector3d& v, geometry_msgs::Point& p) {
     p.x = v.x();

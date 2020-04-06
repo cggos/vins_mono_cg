@@ -53,6 +53,23 @@ class GlobalSFM
 {
 public:
 	GlobalSFM();
+
+	/**
+	 * @brief 以第l帧坐标系为参考系，PnP计算滑窗内每一帧的位姿，并三角化特征点，最后 full BA。
+	 *        
+	 *        输出 q、T： transform from Ci to C0 (第l帧)
+	 * 
+	 * @param frame_num 
+	 * @param q 
+	 * @param T 
+	 * @param l 
+	 * @param relative_R 
+	 * @param relative_T 
+	 * @param sfm_f 
+	 * @param sfm_tracked_points 
+	 * @return true 
+	 * @return false 
+	 */
 	bool construct(int frame_num, Quaterniond* q, Vector3d* T, int l,
 			  const Matrix3d relative_R, const Vector3d relative_T,
 			  vector<SFMFeature> &sfm_f, map<int, Vector3d> &sfm_tracked_points);

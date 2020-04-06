@@ -8,19 +8,8 @@ InitialEXRotation::InitialEXRotation(){
     ric = Matrix3d::Identity();
 }
 
-/**
- * @brief 通过一组匹配点和IMU的预积分结果，计算相机与IMU的外参的旋转量
- * @details Monocular Visual–Inertial State Estimation With Online Initialization and Camera–IMU Extrinsic Calibration
-            (V.A 部分)
- * @param corres              一组匹配的特征点
- * @param delta_q_imu         k ==> k+1
- * @param calib_ric_result    Camera与IMU的外参之旋转量
- * @return
- */
 bool InitialEXRotation::CalibrationExRotation(
-        vector<pair<Vector3d, Vector3d>> corres,
-        Quaterniond delta_q_imu,
-        Matrix3d &calib_ric_result)
+        vector<pair<Vector3d, Vector3d>> corres, Quaterniond delta_q_imu, Matrix3d &calib_ric_result)
 {
     // 滑窗内的帧数加1
     frame_count++;

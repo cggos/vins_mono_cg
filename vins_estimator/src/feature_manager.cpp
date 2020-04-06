@@ -33,15 +33,6 @@ int FeatureManager::getFeatureCount()
     return cnt;
 }
 
-/**
- * @brief 基于视差来选择关键帧(经过旋转补偿)，向FeaturesManger中添加Features并确定共视关系及视差角的大小
- * @details 需要注意的是，在前段的Feature_tracking部分，对所有的Features都进行了编号
- *          关于视差的判断，并没有看到关于角度的补偿，或者是在后面边缘化的具体过程中存在角度的补偿
- * @param frame_count
- * @param image
- * @param td
- * @return
- */
 bool FeatureManager::addFeatureCheckParallax(int frame_count,
                                              const map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> &image,
                                              double td) {
@@ -153,10 +144,6 @@ void FeatureManager::clearDepth(const VectorXd &x) {
     }
 }
 
-/**
- * @brief 读取特征点的逆深度
- * @return
- */
 VectorXd FeatureManager::getDepthVector() {
     VectorXd dep_vec(getFeatureCount());
     int feature_index = -1;
@@ -173,13 +160,6 @@ VectorXd FeatureManager::getDepthVector() {
     return dep_vec;
 }
 
-/**
- * @brief 三角化没有恢复出深度的特征点
- * @details 1.将所有的frame转到同一个frame之下  2.进行三角化的剩余步骤
- * @param Ps
- * @param tic
- * @param ric
- */
 void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) {
     for (auto &it_per_id : feature) {
         it_per_id.used_num = it_per_id.feature_per_frame.size();
@@ -228,12 +208,8 @@ void FeatureManager::triangulate(Vector3d Ps[], Vector3d tic[], Matrix3d ric[]) 
         ROS_ASSERT(svd_idx == svd_A.rows());
 
         Eigen::Vector4d svd_V = Eigen::JacobiSVD<Eigen::MatrixXd>(svd_A, Eigen::ComputeThinV).matrixV().rightCols<1>();
-        double svd_method = svd_V[2] / svd_V[3];
-        //it_per_id->estimated_depth = -b / A;
-        //it_per_id->estimated_depth = svd_V[2] / svd_V[3];
-
-        it_per_id.estimated_depth = svd_method;
-        //it_per_id->estimated_depth = INIT_DEPTH;
+        
+        it_per_id.estimated_depth = svd_V[2] / svd_V[3];
 
         if (it_per_id.estimated_depth < 0.1) {
             it_per_id.estimated_depth = INIT_DEPTH;
@@ -260,16 +236,17 @@ void FeatureManager::removeBackShiftDepth(Eigen::Matrix3d marg_R, Eigen::Vector3
 
         if (it->start_frame != 0)
             it->start_frame--;
-        else {
+        else { // 对于原来的第一帧，就要丢弃了，在丢弃之前，把相关信息传给第2帧
             Eigen::Vector3d uv_i = it->feature_per_frame[0].point;
             it->feature_per_frame.erase(it->feature_per_frame.begin());
-            if (it->feature_per_frame.size() < 2) {
+
+            if (it->feature_per_frame.size() < 2) { // 如果丢弃的帧，没啥特征点，直接丢弃
                 feature.erase(it);
                 continue;
             } else {
-                Eigen::Vector3d pts_i = uv_i * it->estimated_depth;
+                Eigen::Vector3d pts_i   = uv_i * it->estimated_depth;
                 Eigen::Vector3d w_pts_i = marg_R * pts_i + marg_P;
-                Eigen::Vector3d pts_j = new_R.transpose() * (w_pts_i - new_P);
+                Eigen::Vector3d pts_j   = new_R.transpose() * (w_pts_i - new_P);
                 double dep_j = pts_j(2);
                 if (dep_j > 0)
                     it->estimated_depth = dep_j;
