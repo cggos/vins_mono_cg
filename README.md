@@ -72,9 +72,18 @@ catkin build
 Evaluate the output trajectory **vins_result_loop.tum** with **ground truth** trajectory in the standard dataset (e.g. for EuRoC MAV dataset, the ground truth file is `<sequence>/mav0/state_groundtruth_estimate0/data.csv` ) using the **[evo](https://michaelgrupp.github.io/evo/)** tools.
 
 1. copy the ground truth file **data.csv** to the directory as same to **vins_result_loop.tum**  
-2. get **data.tum** by `evo_traj euroc data.csv --save_as_tum`
-3. evaluate by `evo_ape tum data.tum vins_result_loop.tum --align --plot`
-4. get results
+2. evaluate (APE & RPE)
+   ```sh
+   evo_traj euroc data.csv --save_as_tum # --> data.tum
+   evo_ape tum data.tum vins_result_loop.tum --align --plot
+   evo_rpe tum data.tum vins_result_loop.tum --align --plot
+
+   # or
+
+   evo_ape euroc data.csv vins_result_loop.tum --align --plot
+   evo_rpe euroc data.csv vins_result_loop.tum --align --plot
+   ```
+3. get results
 
     ```
     APE w.r.t. translation part (m)
