@@ -36,6 +36,8 @@ bool init_feature = 0;
 bool init_imu = 1;
 double last_imu_t = 0;
 
+std::ofstream fTD;
+
 void predict(const sensor_msgs::ImuConstPtr &imu_msg)
 {
     double t = imu_msg->header.stamp.toSec();
@@ -330,6 +332,8 @@ void process()
             double whole_t = t_s.toc();
             printStatistics(estimator, whole_t);
 
+            fTD << estimator.td * 1000 << std::endl;
+
             std_msgs::Header header = img_msg->header;
             header.frame_id = "world";
 
@@ -363,6 +367,8 @@ int main(int argc, char **argv)
 
     readParameters(n);
     estimator.setParameter();
+
+    fTD.open("td_data_hkvins.txt");
 
 #ifdef EIGEN_DONT_PARALLELIZE
     ROS_DEBUG("EIGEN_DONT_PARALLELIZE");
