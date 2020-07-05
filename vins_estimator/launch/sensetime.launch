@@ -1,7 +1,6 @@
 <launch>
     <arg name="rviz" default="true" />
-    <arg name="bag" default="false" />
-    <arg name="config_path" default = "$(find feature_tracker)/../config/euroc/euroc_config.yaml" />
+    <arg name="config_path" default = "$(find feature_tracker)/../config/sensetime/sensetime_mi8.yaml" />
 	<arg name="vins_path"   default = "$(find feature_tracker)/../config/../" />
 
     <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log">
@@ -23,14 +22,8 @@
     </node>
 
     <group if="$(arg rviz)">
-        <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" 
-            args="-d $(find vins_estimator)/../config/vins_rviz_config.rviz" />
-    </group>
-
-    <group if="$(arg bag)">
-        <arg name="bagfile" default="/home/cg/projects/datasets/euroc/MH_01_easy.bag"/>
-        <node name="bagplay" pkg="rosbag" type="play" args="-s 0 $(arg bagfile)" output="log">
-        </node>
+        <include file="$(find vins_estimator)/launch/vins_rviz.launch">
+        </include>
     </group>
 
 </launch>
