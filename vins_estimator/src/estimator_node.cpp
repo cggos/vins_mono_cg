@@ -1,16 +1,19 @@
-#include <stdio.h>
-#include <queue>
-#include <map>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
-#include <ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
+#include <ros/ros.h>
+#include <stdio.h>
+
+#include <condition_variable>
+#include <map>
+#include <mutex>
 #include <opencv2/opencv.hpp>
+#include <queue>
+#include <thread>
 
 #include "estimator.h"
 #include "parameters.h"
 #include "utility/visualization.h"
+
+#define PUB_LATEST_ODOM 0
 
 Estimator estimator;
 
@@ -21,10 +24,19 @@ queue<sensor_msgs::PointCloudConstPtr> feature_buf;
 queue<sensor_msgs::PointCloudConstPtr> relo_buf;
 
 std::mutex m_buf;
-std::mutex m_state;
 std::mutex m_estimator;
 
+bool init_feature = 0;
+double last_imu_t = 0;
+
+#if PUB_LATEST_ODOM
+
+std::mutex m_state;
+
 double latest_time;
+
+bool init_imu = 1;
+
 Eigen::Vector3d tmp_P;
 Eigen::Quaterniond tmp_Q;
 Eigen::Vector3d tmp_V;
@@ -32,15 +44,10 @@ Eigen::Vector3d tmp_Ba;
 Eigen::Vector3d tmp_Bg;
 Eigen::Vector3d acc_0;
 Eigen::Vector3d gyr_0;
-bool init_feature = 0;
-bool init_imu = 1;
-double last_imu_t = 0;
 
-void predict(const sensor_msgs::ImuConstPtr &imu_msg)
-{
+void predict(const sensor_msgs::ImuConstPtr &imu_msg) {
     double t = imu_msg->header.stamp.toSec();
-    if (init_imu)
-    {
+    if (init_imu) {
         latest_time = t;
         init_imu = 0;
         return;
@@ -74,48 +81,44 @@ void predict(const sensor_msgs::ImuConstPtr &imu_msg)
     gyr_0 = angular_velocity;
 }
 
-void update()
-{
+void update() {
     TicToc t_predict;
     latest_time = current_time;
-    tmp_P  = estimator.Ps[WINDOW_SIZE];
-    tmp_Q  = estimator.Rs[WINDOW_SIZE];
-    tmp_V  = estimator.Vs[WINDOW_SIZE];
+    tmp_P = estimator.Ps[WINDOW_SIZE];
+    tmp_Q = estimator.Rs[WINDOW_SIZE];
+    tmp_V = estimator.Vs[WINDOW_SIZE];
     tmp_Ba = estimator.Bas[WINDOW_SIZE];
     tmp_Bg = estimator.Bgs[WINDOW_SIZE];
-    acc_0  = estimator.acc_0;
-    gyr_0  = estimator.gyr_0;
+    acc_0 = estimator.acc_0;
+    gyr_0 = estimator.gyr_0;
 
     queue<sensor_msgs::ImuConstPtr> tmp_imu_buf = imu_buf;
     for (sensor_msgs::ImuConstPtr tmp_imu_msg; !tmp_imu_buf.empty(); tmp_imu_buf.pop())
         predict(tmp_imu_buf.front());
-
 }
+
+#endif
 
 /**
  * @brief 获取Feature和IMU的测量值，这里做了简单的一个对齐
  * @return
  */
 std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>>
-getMeasurements()
-{
+getMeasurements() {
     std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
 
-    while (true)
-    {
+    while (true) {
         if (imu_buf.empty() || feature_buf.empty())
             return measurements;
 
         // 如果最新的IMU的数据时间戳小于最旧特征点的时间戳，则等待IMU刷新
-        if (imu_buf.back()->header.stamp.toSec() <= feature_buf.front()->header.stamp.toSec() + estimator.td)
-        {
+        if (imu_buf.back()->header.stamp.toSec() <= feature_buf.front()->header.stamp.toSec() + estimator.td) {
             //ROS_WARN("wait for imu, only should happen at the beginning");
             return measurements;
         }
 
         // 如果最旧的IMU数据的时间戳大于最旧特征时间戳，则弹出旧图像
-        if (imu_buf.front()->header.stamp.toSec() >= feature_buf.front()->header.stamp.toSec() + estimator.td)
-        {
+        if (imu_buf.front()->header.stamp.toSec() >= feature_buf.front()->header.stamp.toSec() + estimator.td) {
             ROS_WARN("throw img, only should happen at the beginning");
             feature_buf.pop();
             continue;
@@ -127,8 +130,7 @@ getMeasurements()
         // 这里IMU和Feature做了简单的对齐，确保IMU的时间戳是小于图像的
         // 在IMU buff中的时间戳小于特征点的都和该帧特征联合存入
         std::vector<sensor_msgs::ImuConstPtr> IMUs;
-        while (imu_buf.front()->header.stamp.toSec() < img_msg->header.stamp.toSec() + estimator.td)
-        {
+        while (imu_buf.front()->header.stamp.toSec() < img_msg->header.stamp.toSec() + estimator.td) {
             IMUs.emplace_back(imu_buf.front());
             imu_buf.pop();
         }
@@ -141,8 +143,7 @@ getMeasurements()
     return measurements;
 }
 
-void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
-{
+void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg) {
     if (imu_msg->header.stamp.toSec() <= last_imu_t) {
         ROS_WARN("imu message in disorder!");
         return;
@@ -157,22 +158,22 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 
     last_imu_t = imu_msg->header.stamp.toSec();
 
+#if PUB_LATEST_ODOM
     {
         std::lock_guard<std::mutex> lg(m_state);
 
         predict(imu_msg);
 
-        std_msgs::Header header = imu_msg->header;
-        header.frame_id = "world";
-
-        if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
+        if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR) {
+            std_msgs::Header header = imu_msg->header;
+            header.frame_id = "world";
             pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header);
+        }
     }
+#endif
 }
 
-
-void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
-{
+void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg) {
     //skip the first detected feature, which doesn't contain optical flow speed
     if (!init_feature) {
         init_feature = 1;
@@ -186,62 +187,54 @@ void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
     con.notify_one();
 }
 
-void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
-{
-    if (restart_msg->data == true)
-    {
-        ROS_WARN("restart the estimator!");
+void restart_callback(const std_msgs::BoolConstPtr &restart_msg) {
+    if (restart_msg->data == true) {
+        printf("[cggos %s]\n", __FUNCTION__);
+
         m_buf.lock();
-        while(!feature_buf.empty())
+        while (!feature_buf.empty())
             feature_buf.pop();
-        while(!imu_buf.empty())
+        while (!imu_buf.empty())
             imu_buf.pop();
         m_buf.unlock();
+
         m_estimator.lock();
         estimator.clearState();
         estimator.setParameter();
         m_estimator.unlock();
+
         current_time = -1;
         last_imu_t = 0;
     }
     return;
 }
 
-void relocalization_callback(const sensor_msgs::PointCloudConstPtr &points_msg)
-{
-    //printf("relocalization callback! \n");
+void relocalization_callback(const sensor_msgs::PointCloudConstPtr &points_msg) {
+    printf("[cggos %s]\n", __FUNCTION__);
+
     m_buf.lock();
     relo_buf.push(points_msg);
     m_buf.unlock();
 }
 
-
-/**
- * @brief thread: visual-inertial odometry
- */
-void process()
-{
-    while (true)
-    {
+void process() {
+    while (true) {
         //! 单帧图像对应多帧IMU数据的结构
         std::vector<std::pair<std::vector<sensor_msgs::ImuConstPtr>, sensor_msgs::PointCloudConstPtr>> measurements;
 
         std::unique_lock<std::mutex> lk(m_buf);
-        con.wait(lk, [&]{return (measurements = getMeasurements()).size() != 0;});
+        con.wait(lk, [&] { return (measurements = getMeasurements()).size() != 0; });
         lk.unlock();
 
         m_estimator.lock();
-        for (auto &measurement : measurements)
-        {
+        for (auto &measurement : measurements) {
             auto img_msg = measurement.second;
             double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0;
-            for (auto &imu_msg : measurement.first)
-            {
-                double t     = imu_msg->header.stamp.toSec();
+            for (auto &imu_msg : measurement.first) {
+                double t = imu_msg->header.stamp.toSec();
                 double img_t = img_msg->header.stamp.toSec() + estimator.td;
 
-                if (t <= img_t)
-                { 
+                if (t <= img_t) {
                     if (current_time < 0)
                         current_time = t;
                     double dt = t - current_time;
@@ -255,9 +248,7 @@ void process()
                     rz = imu_msg->angular_velocity.z;
                     estimator.processIMU(dt, Vector3d(dx, dy, dz), Vector3d(rx, ry, rz));
                     //printf("imu: dt:%f a: %f %f %f w: %f %f %f\n",dt, dx, dy, dz, rx, ry, rz);
-                }
-                else
-                {
+                } else {
                     double dt_1 = img_t - current_time;
                     double dt_2 = t - img_t;
                     current_time = img_t;
@@ -279,17 +270,14 @@ void process()
 
             // set relocalization frame
             sensor_msgs::PointCloudConstPtr relo_msg = NULL;
-            while (!relo_buf.empty())
-            {
+            while (!relo_buf.empty()) {
                 relo_msg = relo_buf.front();
                 relo_buf.pop();
             }
-            if (relo_msg != NULL)
-            {
+            if (relo_msg != NULL) {
                 vector<Vector3d> match_points;
                 double frame_stamp = relo_msg->header.stamp.toSec();
-                for (unsigned int i = 0; i < relo_msg->points.size(); i++)
-                {
+                for (unsigned int i = 0; i < relo_msg->points.size(); i++) {
                     Vector3d u_v_id;
                     u_v_id.x() = relo_msg->points[i].x;
                     u_v_id.y() = relo_msg->points[i].y;
@@ -308,8 +296,7 @@ void process()
 
             TicToc t_s;
             map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
-            for (unsigned int i = 0; i < img_msg->points.size(); i++)
-            {
+            for (unsigned int i = 0; i < img_msg->points.size(); i++) {
                 int v = int(img_msg->channels[0].values[i] + 0.5);
                 int feature_id = v / NUM_OF_CAM;
                 int camera_id  = v % NUM_OF_CAM;
@@ -323,7 +310,7 @@ void process()
                 ROS_ASSERT(z == 1);
                 Eigen::Matrix<double, 7, 1> xyz_uv_velocity;
                 xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
-                image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
+                image[feature_id].emplace_back(camera_id, xyz_uv_velocity);
             }
             estimator.processImage(image, img_msg->header);
 
@@ -345,17 +332,18 @@ void process()
         }
         m_estimator.unlock();
 
+#if PUB_LATEST_ODOM
         m_buf.lock();
         m_state.lock();
         if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR)
             update();
         m_state.unlock();
         m_buf.unlock();
+#endif        
     }
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     ros::init(argc, argv, "vins_estimator");
 
     ros::NodeHandle n("~");
@@ -371,9 +359,9 @@ int main(int argc, char **argv)
 
     registerPub(n);
 
-    ros::Subscriber sub_imu         = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
-    ros::Subscriber sub_image       = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
-    ros::Subscriber sub_restart     = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
+    ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
+    ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
+    ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
     ros::Subscriber sub_relo_points = n.subscribe("/pose_graph/match_points", 2000, relocalization_callback);
 
     std::thread measurement_process{process};
