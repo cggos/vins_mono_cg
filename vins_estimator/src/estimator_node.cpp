@@ -167,7 +167,7 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg) {
         if (estimator.solver_flag == Estimator::SolverFlag::NON_LINEAR) {
             std_msgs::Header header = imu_msg->header;
             header.frame_id = "world";
-            pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header);
+            pubLatestOdometry(tmp_P, tmp_Q, tmp_V, header); // IMU Rate Pose
         }
     }
 #endif

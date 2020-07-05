@@ -104,8 +104,7 @@ class IntegrationBase
         result_delta_p = delta_p + delta_v * _dt + 0.5 * un_acc * _dt * _dt;
         result_delta_v = delta_v + un_acc * _dt;
 
-        // 预积分的过程中Bias没有发生改变
-        result_linearized_ba = linearized_ba;
+        result_linearized_ba = linearized_ba; // 预积分的过程中Bias没有发生改变
         result_linearized_bg = linearized_bg;
 
         // 离散状态下在计算协方差矩阵的时候为：P' = FPF' + GQG'

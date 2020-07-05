@@ -133,7 +133,7 @@ void Estimator::processImage(
 
     tmp_pre_integration = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
 
-    // 相机与IMU之间的相对旋转
+#pragma region // Cam与IMU之间的相对旋转
     if (ESTIMATE_EXTRINSIC == 2) {
         ROS_INFO("calibrating extrinsic param, rotation movement is needed");
         if (frame_count != 0) {
@@ -151,6 +151,7 @@ void Estimator::processImage(
             }
         }
     }
+#pragma endregion    
 
     if (solver_flag == INITIAL) {
         if (frame_count == WINDOW_SIZE) { // 滑窗中的Keyframe达到指定大小的时候，才开始优化
@@ -167,7 +168,7 @@ void Estimator::processImage(
                 slideWindow();
                 f_manager.removeFailures();
 
-                std::cout << "[cggos " << __FUNCTION__ << "] Initialization finish!" << std::endl;
+                printf("[cggos %s] Initialization finish!\n", __FUNCTION__);
 
                 last_R = Rs[WINDOW_SIZE];
                 last_P = Ps[WINDOW_SIZE];
@@ -176,7 +177,7 @@ void Estimator::processImage(
             } else
                 slideWindow();
         } else
-            frame_count++;
+            frame_count++;    
     } else {
         TicToc t_solve;
         solveOdometry();
@@ -211,8 +212,7 @@ void Estimator::processImage(
 bool Estimator::initialStructure() {
     TicToc t_sfm;
 
-    //! 通过计算预积分加速度的标准差，检测IMU的可观性
-    // check imu observibility
+#pragma region // check imu observibility
     {
         // 计算均值
         map<double, ImageFrame>::iterator frame_it;
@@ -243,6 +243,7 @@ bool Estimator::initialStructure() {
             // return false;
         }
     }
+#pragma endregion    
 
     //! 滑窗内全局的SFM (global sfm)
 
@@ -278,8 +279,7 @@ bool Estimator::initialStructure() {
     Quaterniond Q[frame_count + 1];
     Vector3d T[frame_count + 1];
     map<int, Vector3d> sfm_tracked_points;
-    if (!sfm.construct(frame_count + 1, Q, T, l, relative_R, relative_T, sfm_f,
-                       sfm_tracked_points)) {
+    if (!sfm.construct(frame_count + 1, Q, T, l, relative_R, relative_T, sfm_f, sfm_tracked_points)) {
         ROS_DEBUG("global SFM failed!");
         marginalization_flag = MARGIN_OLD;
         return false;
@@ -659,55 +659,52 @@ bool Estimator::failureDetection() {
 }
 
 void Estimator::optimization() {
+    TicToc t_whole;
+
     ceres::Problem problem;
 
     ceres::LossFunction *loss_function;
-    // loss_function = new ceres::HuberLoss(1.0);
-    loss_function = new ceres::CauchyLoss(1.0);
+    loss_function = new ceres::CauchyLoss(1.0); // new ceres::HuberLoss(1.0);
 
-    //! Step1:添加 待优化状态量(vertex)
+#pragma region // AddParameterBlock
 
-    // 添加 [p, q](7)，[speed, ba, bg](9)
     for (int i = 0; i < WINDOW_SIZE + 1; i++) {
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
-        problem.AddParameterBlock(para_Pose[i], SIZE_POSE, local_parameterization);
-        problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEEDBIAS);
+        problem.AddParameterBlock(para_Pose[i], SIZE_POSE, local_parameterization); // [p, q] 7
+        problem.AddParameterBlock(para_SpeedBias[i], SIZE_SPEEDBIAS); // [v, ba, bg] 9
     }
 
-    // 添加 相机与IMU的外参[p_cb,q_cb](7)
     for (int i = 0; i < NUM_OF_CAM; i++) {
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
-        problem.AddParameterBlock(para_Ex_Pose[i], SIZE_POSE, local_parameterization);
+        problem.AddParameterBlock(para_Ex_Pose[i], SIZE_POSE, local_parameterization); // [p, q] 7
         if (!ESTIMATE_EXTRINSIC) {
-            ROS_DEBUG("fix extinsic param");
-            problem.SetParameterBlockConstant(para_Ex_Pose[i]);
-        } else
-            ROS_DEBUG("estimate extinsic param");
+            problem.SetParameterBlockConstant(para_Ex_Pose[i]); // fix extinsic param
+        }
     }
 
-    // 添加 td
     if (ESTIMATE_TD) {
-        problem.AddParameterBlock(para_Td[0], 1);
+        problem.AddParameterBlock(para_Td[0], 1); // td 1
         // problem.SetParameterBlockConstant(para_Td[0]);
     }
 
-    TicToc t_whole, t_prepare;
-    vector2double();  // 将优化量存入数组
+#pragma endregion
 
-    //! Step2: 添加 误差项
+    vector2double();
+
+#pragma region // AddResidualBlock
 
     // Marginalization residual: 1个
     // IMU residual: WINDOW_SIZE个(总长度WINDOW_SIZE+1),
     // 每相邻两个Pose之间一个IMU residual项 feature residual: 观测数大于2的特征,
     // 首次观测与后面的每次观测之间各一个residual项
 
-    // 添加 边缘化的residual
+    // Marginalization factor
     if (last_marginalization_info) {  // construct new marginlization_factor
         auto *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
         problem.AddResidualBlock(marginalization_factor, NULL, last_marginalization_parameter_blocks);
     }
 
-    // 添加 IMU的residual
+    // IMU factor
     for (int i = 0; i < WINDOW_SIZE; i++) {
         int j = i + 1;
         if (pre_integrations[j]->sum_dt > 10.0) 
@@ -716,11 +713,10 @@ void Estimator::optimization() {
         problem.AddResidualBlock(imu_factor, NULL, para_Pose[i], para_SpeedBias[i], para_Pose[j], para_SpeedBias[j]);
     }
 
-    // 添加 视觉的residual
-    // add residual for per feature to per frame
+    // Vision factor
     int f_m_cnt = 0;
     int feature_index = -1;
-    for (auto &it_per_id : f_manager.feature) {
+    for (auto &it_per_id : f_manager.feature) { // add residual for per feature to per frame
         it_per_id.used_num = it_per_id.feature_per_frame.size();
 
         if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
@@ -728,11 +724,9 @@ void Estimator::optimization() {
 
         ++feature_index;
 
-        // 得到观测到该特征点的首帧
-        int imu_i = it_per_id.start_frame, imu_j = imu_i - 1;
-
-        // 得到首帧观测到的特征点
-        Vector3d pts_i = it_per_id.feature_per_frame[0].point;
+        int imu_i = it_per_id.start_frame, imu_j = imu_i - 1; // 得到观测到该特征点的首帧
+         
+        Vector3d pts_i = it_per_id.feature_per_frame[0].point; // 得到首帧观测到的特征点
 
         for (auto &it_per_frame : it_per_id.feature_per_frame) {
             imu_j++;
@@ -773,10 +767,14 @@ void Estimator::optimization() {
     }
 
     ROS_DEBUG("visual measurement count: %d", f_m_cnt);
-    ROS_DEBUG("prepare for ceres: %f", t_prepare.toc());
+
+#pragma endregion
+
+#pragma region // Relocalization Info
 
     if (relocalization_info) {
-        // printf("set relocalization factor! \n");
+        printf("[cggos %s] set relocalization factor!\n", __FUNCTION__);
+
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
         problem.AddParameterBlock(relo_Pose, SIZE_POSE, local_parameterization);
         int retrive_feature_index = 0;
@@ -793,22 +791,22 @@ void Estimator::optimization() {
                     retrive_feature_index++;
                 }
                 if ((int)match_points[retrive_feature_index].z() == it_per_id.feature_id) {
-                    Vector3d pts_j =
-                        Vector3d(match_points[retrive_feature_index].x(),
-                                 match_points[retrive_feature_index].y(), 1.0);
+                    Vector3d pts_j = 
+                        Vector3d(match_points[retrive_feature_index].x(), match_points[retrive_feature_index].y(), 1.0);
                     Vector3d pts_i = it_per_id.feature_per_frame[0].point;
 
                     ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j);
-                    problem.AddResidualBlock(f, loss_function, para_Pose[start],
-                                             relo_Pose, para_Ex_Pose[0],
-                                             para_Feature[feature_index]);
+                    problem.AddResidualBlock(f, loss_function, 
+                                             para_Pose[start], relo_Pose, para_Ex_Pose[0], para_Feature[feature_index]);
                     retrive_feature_index++;
                 }
             }
         }
     }
 
-    //! Step3: ceres求解
+#pragma endregion
+
+#pragma region // ceres::Solve
 
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::DENSE_SCHUR;
@@ -832,7 +830,7 @@ void Estimator::optimization() {
 
     double2vector();
 
-    //! Step4：构造 边缘化(marginalization) 的Problem
+#pragma endregion
 
     /**
      * sliding windows bounding了优化问题中pose的个数,
@@ -863,8 +861,9 @@ void Estimator::optimization() {
      */
 
     TicToc t_whole_marginalization;
-    // 边缘化旧帧
     if (marginalization_flag == MARGIN_OLD) {
+#pragma region // Marginalization MARGIN_OLD
+
         auto *marginalization_info = new MarginalizationInfo();
 
         vector2double();
@@ -903,11 +902,9 @@ void Estimator::optimization() {
         // 添加视觉的先验，只添加起始帧是旧帧且观测次数大于2的Features
         {
             int feature_index = -1;
-            for (auto &it_per_id : f_manager.feature)  // 遍历滑窗内所有的Features
-            {
+            for (auto &it_per_id : f_manager.feature) {
                 it_per_id.used_num = it_per_id.feature_per_frame.size();  // 该特征点被观测到的次数
 
-                // Feature的观测次数不小于2次，且起始帧不属于最后两帧
                 if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
                     continue;
 
@@ -925,6 +922,7 @@ void Estimator::optimization() {
                         continue;
 
                     Vector3d pts_j = it_per_frame.point;
+                    
                     if (ESTIMATE_TD) {
                         auto *f_td = new ProjectionTdFactor(
                             pts_i, pts_j,
@@ -984,7 +982,9 @@ void Estimator::optimization() {
         last_marginalization_info = marginalization_info;
         last_marginalization_parameter_blocks = marginalization_info->getParameterBlocks(addr_shift);
 
-    } else { // 边缘化倒数第二帧
+#pragma endregion
+    } else {
+#pragma region // Marginalization MARGIN_NEW        
 
         if (last_marginalization_info &&
             std::count(std::begin(last_marginalization_parameter_blocks),
@@ -1045,8 +1045,11 @@ void Estimator::optimization() {
             last_marginalization_info = marginalization_info;
             last_marginalization_parameter_blocks = marginalization_info->getParameterBlocks(addr_shift);
         }
+
+#pragma endregion
     }
     ROS_DEBUG("whole marginalization costs: %f", t_whole_marginalization.toc());
+
     ROS_DEBUG("whole time for ceres: %f", t_whole.toc());
 }
 
