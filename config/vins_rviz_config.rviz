@@ -104,8 +104,8 @@ Visualization Manager:
         - Alpha: 1
           Buffer Length: 1
           Class: rviz/Path
-          Color: 0; 255; 0
-          Enabled: false
+          Color: 0; 85; 255
+          Enabled: true
           Head Diameter: 0.300000012
           Head Length: 0.200000003
           Length: 0.300000012
@@ -123,7 +123,7 @@ Visualization Manager:
           Shaft Length: 0.100000001
           Topic: /vins_estimator/path
           Unreliable: false
-          Value: false
+          Value: true
         - Class: rviz/MarkerArray
           Enabled: false
           Marker Topic: /vins_estimator/camera_pose_visual
@@ -270,7 +270,7 @@ Visualization Manager:
           Name: camera_visual
           Namespaces:
             CameraPoseVisualization: true
-          Queue Size: 100
+          Queue Size: 1
           Value: true
         - Class: rviz/Image
           Enabled: true
@@ -376,8 +376,8 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1390
-  X: 160
-  Y: 97
+  X: 2156
+  Y: 109
   loop_match_image:
     collapsed: false
   tracked image:

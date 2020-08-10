@@ -777,12 +777,12 @@ void Estimator::optimization() {
 
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
         problem.AddParameterBlock(relo_Pose, SIZE_POSE, local_parameterization);
+        
         int retrive_feature_index = 0;
         int feature_index = -1;
         for (auto &it_per_id : f_manager.feature) {
             it_per_id.used_num = it_per_id.feature_per_frame.size();
-            if (!(it_per_id.used_num >= 2 &&
-                  it_per_id.start_frame < WINDOW_SIZE - 2))
+            if (!(it_per_id.used_num >= 2 && it_per_id.start_frame < WINDOW_SIZE - 2))
                 continue;
             ++feature_index;
             int start = it_per_id.start_frame;
@@ -791,13 +791,12 @@ void Estimator::optimization() {
                     retrive_feature_index++;
                 }
                 if ((int)match_points[retrive_feature_index].z() == it_per_id.feature_id) {
-                    Vector3d pts_j = 
-                        Vector3d(match_points[retrive_feature_index].x(), match_points[retrive_feature_index].y(), 1.0);
+                    Vector3d pts_j = Vector3d(match_points[retrive_feature_index].x(), match_points[retrive_feature_index].y(), 1.0);
                     Vector3d pts_i = it_per_id.feature_per_frame[0].point;
 
                     ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j);
-                    problem.AddResidualBlock(f, loss_function, 
-                                             para_Pose[start], relo_Pose, para_Ex_Pose[0], para_Feature[feature_index]);
+                    problem.AddResidualBlock(f, loss_function, para_Pose[start], relo_Pose, para_Ex_Pose[0], para_Feature[feature_index]);
+                    
                     retrive_feature_index++;
                 }
             }
@@ -828,9 +827,9 @@ void Estimator::optimization() {
     ROS_DEBUG("Iterations : %d", static_cast<int>(summary.iterations.size()));
     ROS_DEBUG("solver costs: %f", t_solver.toc());
 
-    double2vector();
-
 #pragma endregion
+
+    double2vector();
 
     /**
      * sliding windows bounding了优化问题中pose的个数,

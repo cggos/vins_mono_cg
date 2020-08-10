@@ -184,17 +184,17 @@ void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
     //printf("match size %d \n", matched_3d.size());
     cv::Mat r, rvec, t, D, tmp_r;
     cv::Mat K = (cv::Mat_<double>(3, 3) << 1.0, 0, 0, 0, 1.0, 0, 0, 0, 1.0);
-    Matrix3d R_inital;
-    Vector3d P_inital;
-    Matrix3d R_w_c = origin_vio_R * qic;
-    Vector3d T_w_c = origin_vio_T + origin_vio_R * tic;
+    // Matrix3d R_inital;
+    // Vector3d P_inital;
+    // Matrix3d R_w_c = origin_vio_R * qic;
+    // Vector3d T_w_c = origin_vio_T + origin_vio_R * tic;
 
-    R_inital = R_w_c.inverse();
-    P_inital = -(R_inital * T_w_c);
+    // R_inital = R_w_c.inverse();
+    // P_inital = -(R_inital * T_w_c);
 
-    cv::eigen2cv(R_inital, tmp_r);
-    cv::Rodrigues(tmp_r, rvec);
-    cv::eigen2cv(P_inital, t);
+    // cv::eigen2cv(R_inital, tmp_r);
+    // cv::Rodrigues(tmp_r, rvec);
+    // cv::eigen2cv(P_inital, t);
 
     cv::Mat inliers;
     TicToc t_pnp_ransac;
@@ -235,8 +235,6 @@ void KeyFrame::PnPRANSAC(const vector<cv::Point2f> &matched_2d_old_norm,
  * @return
  */
 bool KeyFrame::findConnection(KeyFrame *old_kf) {
-    TicToc tmp_t;
-    //printf("find Connection\n");
     vector<cv::Point2f> matched_2d_cur, matched_2d_old;
     vector<cv::Point2f> matched_2d_cur_norm, matched_2d_old_norm;
     vector<cv::Point3f> matched_3d;
@@ -414,22 +412,10 @@ bool KeyFrame::findConnection(KeyFrame *old_kf) {
             }
             cv::Mat notation(50, COL + gap + COL, CV_8UC3, cv::Scalar(255, 255, 255));
             putText(notation, "current frame: " + to_string(index) + "  sequence: " + to_string(sequence), cv::Point2f(20, 30), CV_FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255), 3);
-
             putText(notation, "previous frame: " + to_string(old_kf->index) + "  sequence: " + to_string(old_kf->sequence), cv::Point2f(20 + COL + gap, 30), CV_FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(255), 3);
             cv::vconcat(notation, loop_match_img, loop_match_img);
 
-            /*
-	            ostringstream path;
-	            path <<  "/home/tony-ws1/raw_data/loop_image/"
-	                    << index << "-"
-	                    << old_kf->index << "-" << "3pnp_match.jpg";
-	            cv::imwrite( path.str().c_str(), loop_match_img);
-	            */
             if ((int)matched_2d_cur.size() > MIN_LOOP_NUM) {
-                /*
-	            	cv::imshow("loop connection",loop_match_img);  
-	            	cv::waitKey(10);  
-	            	*/
                 cv::Mat thumbimage;
                 cv::resize(loop_match_img, thumbimage, cv::Size(loop_match_img.cols / 2, loop_match_img.rows / 2));
                 sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", thumbimage).toImageMsg();
@@ -441,8 +427,10 @@ bool KeyFrame::findConnection(KeyFrame *old_kf) {
     }
 
     if ((int)matched_2d_cur.size() > MIN_LOOP_NUM) {
+		// Told-1 * Torigin
         relative_t = PnP_R_old.transpose() * (origin_vio_T - PnP_T_old);
         relative_q = PnP_R_old.transpose() * origin_vio_R;
+
         relative_yaw = Utility::normalizeAngle(Utility::R2ypr(origin_vio_R).x() - Utility::R2ypr(PnP_R_old).x());
         //printf("PNP relative\n");
         //cout << "pnp relative_t " << relative_t.transpose() << endl;

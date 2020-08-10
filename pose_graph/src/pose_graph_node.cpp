@@ -170,6 +170,7 @@ void imu_forward_callback(const nav_msgs::Odometry::ConstPtr &forward_msg) {
         cameraposevisual.publish_by(pub_camera_pose_visual, forward_msg->header);
     }
 }
+
 void relo_relative_pose_callback(const nav_msgs::Odometry::ConstPtr &pose_msg) {
     Vector3d relative_t = Vector3d(pose_msg->pose.pose.position.x,
                                    pose_msg->pose.pose.position.y,
