@@ -45,9 +45,9 @@ catkin build
   roslaunch vins_estimator mynteye_s1030_mono.launch
   ```
 
-  <div align=center>
-    <img src="./images/vins_mono_mynteye_s1030_mono.jpg">
-  </div>
+  <p align="center">
+    <img src="./images/vins_mono_mynteye_s1030_mono.jpg" style="width:100%;"/>
+  </p>
 
 * [Ubuntu 16.04 下 VINS-Mono 的安装和使用(RealSense ZR300)](https://blog.csdn.net/u011178262/article/details/88086952)
   ```sh
@@ -66,6 +66,13 @@ catkin build
   ./run.sh LAUNCH_FILE_NAME   # ./run.sh euroc.launch
   ```
 * modified the code, simply run `./run.sh LAUNCH_FILE_NAME` after your changes
+
+## ROS Graph
+
+* rqt_graph
+  <p align="center">
+    <img src="./images/vinsmono_rosgraph.svg" style="width:100%;"/>
+  </p>
 
 # Evaluation
 
@@ -96,9 +103,9 @@ Evaluate the output trajectory **vins_result_loop.tum** with **ground truth** tr
          sse	7.809322
          std	0.028865
     ```
-    <div align=center>
-      <img src="./images/vins_euroc_ape.jpg">
-    </div>
+    <p align="center">
+      <img src="./images/vins_euroc_ape.jpg" style="width:100%;"/>
+    </p>
 
 # Tutorial
 
