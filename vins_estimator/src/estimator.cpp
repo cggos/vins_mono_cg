@@ -559,6 +559,9 @@ void Estimator::double2vector() {
 
     Vector3d origin_R00 = 
         Utility::R2ypr(Quaterniond(para_Pose[0][6], para_Pose[0][3], para_Pose[0][4], para_Pose[0][5]).toRotationMatrix());
+
+    // Tww' = Tw0 * Tw'0,  Twi = Tww' * Tw'i
+    
     double y_diff = origin_R0.x() - origin_R00.x();
     // TODO
     Matrix3d rot_diff = Utility::ypr2R(Vector3d(y_diff, 0, 0));
