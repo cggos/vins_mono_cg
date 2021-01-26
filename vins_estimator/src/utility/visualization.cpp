@@ -128,6 +128,11 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header) {
         odometry.twist.twist.linear.x = estimator.Vs[WINDOW_SIZE].x();
         odometry.twist.twist.linear.y = estimator.Vs[WINDOW_SIZE].y();
         odometry.twist.twist.linear.z = estimator.Vs[WINDOW_SIZE].z();
+        // TODO: get Covariance matrix from Hessian matrix
+        Eigen::Matrix<double, 6, 6> Ppose = 0.01 * Eigen::Matrix<double, 6, 6>::Identity();
+        Eigen::Matrix<double, 3, 3> Pvel = 0.001 * Eigen::Matrix<double, 3, 3>::Identity();
+        Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>>(odometry.pose.covariance.c_array()) = Ppose;
+        Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>>(odometry.twist.covariance.c_array()) = Pvel;
         pub_odometry.publish(odometry);
 
         geometry_msgs::PoseStamped pose_stamped;
