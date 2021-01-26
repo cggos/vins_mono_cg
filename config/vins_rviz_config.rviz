@@ -4,8 +4,7 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /VIO1
-        - /pose_graph1
+        - /VIO1/Odometry1/Covariance1/Position1
       Splitter Ratio: 0.465115994
     Tree Height: 257
   - Class: rviz/Selection
@@ -206,6 +205,40 @@ Visualization Manager:
             {}
           Update Interval: 0
           Value: false
+        - Angle Tolerance: 0.100000001
+          Class: rviz/Odometry
+          Covariance:
+            Orientation:
+              Alpha: 0.5
+              Color: 255; 255; 127
+              Color Style: Unique
+              Frame: Local
+              Offset: 1
+              Scale: 1
+              Value: false
+            Position:
+              Alpha: 0.300000012
+              Color: 204; 51; 204
+              Scale: 5
+              Value: true
+            Value: true
+          Enabled: true
+          Keep: 1
+          Name: Odometry
+          Position Tolerance: 0.100000001
+          Shape:
+            Alpha: 1
+            Axes Length: 1
+            Axes Radius: 0.100000001
+            Color: 255; 25; 0
+            Head Length: 0.300000012
+            Head Radius: 0.100000001
+            Shaft Length: 1
+            Shaft Radius: 0.0500000007
+            Value: Axes
+          Topic: /vins_estimator/odometry
+          Unreliable: false
+          Value: true
       Enabled: true
       Name: VIO
     - Class: rviz/Group
@@ -261,17 +294,17 @@ Visualization Manager:
           Marker Topic: /pose_graph/pose_graph
           Name: loop_visual
           Namespaces:
-            CameraPoseVisualization: true
+            {}
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
-          Enabled: true
+          Enabled: false
           Marker Topic: /pose_graph/camera_pose_visual
           Name: camera_visual
           Namespaces:
-            CameraPoseVisualization: true
+            {}
           Queue Size: 1
-          Value: true
+          Value: false
         - Class: rviz/Image
           Enabled: true
           Image Topic: /pose_graph/match_image
@@ -376,8 +409,8 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1390
-  X: 2156
-  Y: 109
+  X: 164
+  Y: 79
   loop_match_image:
     collapsed: false
   tracked image:
