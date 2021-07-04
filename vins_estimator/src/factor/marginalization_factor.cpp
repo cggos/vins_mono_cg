@@ -56,17 +56,17 @@ MarginalizationInfo::~MarginalizationInfo() {
 void MarginalizationInfo::addResidualBlockInfo(ResidualBlockInfo *residual_block_info) {
     factors.emplace_back(residual_block_info);
 
+    std::vector<int> &drop_set = residual_block_info->drop_set;
     std::vector<double *> &parameter_blocks = residual_block_info->parameter_blocks;
-    std::vector<int> parameter_block_sizes  = residual_block_info->cost_function->parameter_block_sizes();
 
-    for (int i = 0; i < static_cast<int>(residual_block_info->parameter_blocks.size()); i++) {
-        double *addr = parameter_blocks[i];
-        parameter_block_size[reinterpret_cast<long>(addr)] = parameter_block_sizes[i];
+    for (int i = 0; i < parameter_blocks.size(); i++) {
+        long addr = reinterpret_cast<long>(parameter_blocks[i]);
+        parameter_block_size[addr] = residual_block_info->cost_function->parameter_block_sizes()[i];
     }
 
-    for (int i = 0; i < static_cast<int>(residual_block_info->drop_set.size()); i++) {
-        double *addr = parameter_blocks[residual_block_info->drop_set[i]];
-        parameter_block_idx[reinterpret_cast<long>(addr)] = 0;
+    for (int i = 0; i < drop_set.size(); i++) {
+        long addr = reinterpret_cast<long>(parameter_blocks[drop_set[i]]);
+        parameter_block_idx[addr] = 0;
     }
 }
 
@@ -75,9 +75,10 @@ void MarginalizationInfo::preMarginalize() {
         it->Evaluate(); // 利用多态性分别计算所有状态变量构成的残差和雅克比矩阵
 
         std::vector<int> block_sizes = it->cost_function->parameter_block_sizes();
+        
         for (int i = 0; i < static_cast<int>(block_sizes.size()); i++) {
-            long addr = reinterpret_cast<long>(it->parameter_blocks[i]);
             int size = block_sizes[i];
+            long addr = reinterpret_cast<long>(it->parameter_blocks[i]);
             if (parameter_block_data.find(addr) == parameter_block_data.end()) {
                 double *data = new double[size];
                 memcpy(data, it->parameter_blocks[i], sizeof(double) * size);
