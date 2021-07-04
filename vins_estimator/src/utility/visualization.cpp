@@ -131,6 +131,15 @@ void pubOdometry(const Estimator &estimator, const std_msgs::Header &header) {
         // TODO: get Covariance matrix from Hessian matrix
         Eigen::Matrix<double, 6, 6> Ppose = 0.01 * Eigen::Matrix<double, 6, 6>::Identity();
         Eigen::Matrix<double, 3, 3> Pvel = 0.001 * Eigen::Matrix<double, 3, 3>::Identity();
+        Ppose.setZero();
+        Eigen::Matrix3d Ppp, Ppo, Pop, Poo;
+        Ppp = estimator.pre_integrations[WINDOW_SIZE-1]->covariance.block<3, 3>(0, 0);
+        Ppo = estimator.pre_integrations[WINDOW_SIZE-1]->covariance.block<3, 3>(0, 3);
+        Pop = estimator.pre_integrations[WINDOW_SIZE-1]->covariance.block<3, 3>(3, 0);
+        Poo = estimator.pre_integrations[WINDOW_SIZE-1]->covariance.block<3, 3>(3, 3);
+        Ppose << Ppp, Ppo, Pop, Poo;
+        Pvel.setZero();
+        Pvel = estimator.pre_integrations[WINDOW_SIZE-1]->covariance.block<3, 3>(6, 6);
         Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>>(odometry.pose.covariance.c_array()) = Ppose;
         Eigen::Map<Eigen::Matrix<double, 3, 3, Eigen::RowMajor>>(odometry.twist.covariance.c_array()) = Pvel;
         pub_odometry.publish(odometry);

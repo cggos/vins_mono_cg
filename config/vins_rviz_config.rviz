@@ -3,8 +3,7 @@ Panels:
     Help Height: 0
     Name: Displays
     Property Tree Widget:
-      Expanded:
-        - /VIO1/Odometry1/Covariance1/Position1
+      Expanded: ~
       Splitter Ratio: 0.465115994
     Tree Height: 257
   - Class: rviz/Selection
@@ -214,12 +213,12 @@ Visualization Manager:
               Color Style: Unique
               Frame: Local
               Offset: 1
-              Scale: 1
-              Value: false
+              Scale: 5000
+              Value: true
             Position:
-              Alpha: 0.300000012
+              Alpha: 0.5
               Color: 204; 51; 204
-              Scale: 5
+              Scale: 5000
               Value: true
             Value: true
           Enabled: true
@@ -294,7 +293,7 @@ Visualization Manager:
           Marker Topic: /pose_graph/pose_graph
           Name: loop_visual
           Namespaces:
-            {}
+            CameraPoseVisualization: true
           Queue Size: 100
           Value: true
         - Class: rviz/MarkerArray
