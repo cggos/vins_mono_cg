@@ -107,7 +107,10 @@ void printStatistics(const Estimator &estimator, double t) {
     last_path = estimator.Ps[WINDOW_SIZE];
     ROS_DEBUG("sum of path %f", sum_of_path);
     if (ESTIMATE_TD)
-        ROS_INFO("td %f", estimator.td);
+        ROS_INFO("td: %f", estimator.td);
+
+    ROS_INFO_STREAM("Ba: " << estimator.Bas[WINDOW_SIZE].transpose());
+    ROS_INFO_STREAM("Bg: " << estimator.Bgs[WINDOW_SIZE].transpose());
 }
 
 void pubOdometry(const Estimator &estimator, const std_msgs::Header &header) {
