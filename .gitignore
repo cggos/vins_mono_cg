@@ -6,3 +6,5 @@ cmake-build-debug/
 brief_k10L6.bin
 
 .tags
+
+.vscode/
