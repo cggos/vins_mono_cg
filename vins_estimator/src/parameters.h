@@ -1,12 +1,14 @@
 #pragma once
 
 #include <ros/ros.h>
-#include <vector>
+
 #include <eigen3/Eigen/Dense>
-#include "utility/utility.h"
-#include <opencv2/opencv.hpp>
-#include <opencv2/core/eigen.hpp>
 #include <fstream>
+#include <opencv2/core/eigen.hpp>
+#include <opencv2/opencv.hpp>
+#include <vector>
+
+#include "utility/utility.h"
 
 const double FOCAL_LENGTH = 460.0;
 const int WINDOW_SIZE = 10;
@@ -38,29 +40,14 @@ extern int ESTIMATE_TD;
 extern int ROLLING_SHUTTER;
 extern double ROW, COL;
 
-
 void readParameters(ros::NodeHandle &n);
 
-enum SIZE_PARAMETERIZATION
-{
-    SIZE_POSE = 7,       ///> 7 DoF(x,y,z,qx,qy,qz,qw)
-    SIZE_SPEEDBIAS = 9,  ///> 9 DoF(vx,vy,vz, bas_x,bas_y,bas_z, bgs_x,bgs_y,bgs_z)
-    SIZE_FEATURE = 1     ///> 1 DoF(inv_depth)
+enum SIZE_PARAMETERIZATION {
+  SIZE_POSE = 7,       ///> 7 DoF(x,y,z,qx,qy,qz,qw)
+  SIZE_SPEEDBIAS = 9,  ///> 9 DoF(vx,vy,vz, bas_x,bas_y,bas_z, bgs_x,bgs_y,bgs_z)
+  SIZE_FEATURE = 1     ///> 1 DoF(inv_depth)
 };
 
-enum StateOrder
-{
-    O_P = 0,
-    O_R = 3,
-    O_V = 6,
-    O_BA = 9,
-    O_BG = 12
-};
+enum StateOrder { O_P = 0, O_R = 3, O_V = 6, O_BA = 9, O_BG = 12 };
 
-enum NoiseOrder
-{
-    O_AN = 0,
-    O_GN = 3,
-    O_AW = 6,
-    O_GW = 9
-};
+enum NoiseOrder { O_AN = 0, O_GN = 3, O_AW = 6, O_GW = 9 };

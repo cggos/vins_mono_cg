@@ -7,21 +7,21 @@ VINS-Mono uses an optimization-based sliding window formulation for providing hi
 [1] *VINS-Mono: A Robust and Versatile Monocular Visual-Inertial State Estimator*    
 [2] *Online Temporal Calibration for Monocular Visual-Inertial Systems*
 
-* [VINS-Mono 论文公式推导与代码解析](https://blog.csdn.net/u011178262/article/details/88769414)
+* [Formula Derivation and Code Analysis of VINS-Mono (RG)](http://dx.doi.org/10.13140/RG.2.2.17003.05929/1)
 
------
-
-[TOC]
+---
 
 # Prerequisites
 
-* ROS Kinetic & Ubuntu 16.04
+tested on Ubuntu 16.04 (ROS Kinetic) and Ubuntu 18.04 (ROS Melodic)
+
 * Eigen 3.3.3
+
 * [Ceres Solver](http://ceres-solver.org/installation.html)
 
 # Build
 
-```bash
+```sh
 catkin_make -j2
 # or
 catkin build
