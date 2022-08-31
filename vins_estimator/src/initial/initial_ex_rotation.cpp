@@ -21,15 +21,18 @@ bool InitialEXRotation::CalibrationExRotation(vector<pair<Vector3d, Vector3d>> c
   Eigen::MatrixXd A(frame_count * 4, 4);
   A.setZero();
   for (int i = 1; i <= frame_count; i++) {
-    Quaterniond r1(Rc[i]);
-    Quaterniond r2(Rc_g[i]);
+    double huber = 1.0;
+    {
+      Quaterniond r1(Rc[i]);
+      Quaterniond r2(Rc_g[i]);
 
-    // 求取估计出的相机与IMU之间旋转的残差
-    double angular_distance = 180 / M_PI * r1.angularDistance(r2);
-    ROS_DEBUG("%d %f", i, angular_distance);
+      // 求取估计出的相机与IMU之间旋转的残差
+      double angular_distance = 180 / M_PI * r1.angularDistance(r2);
+      ROS_DEBUG("%d %f", i, angular_distance);
 
-    // 计算外点剔除的权重
-    double huber = angular_distance > 5.0 ? 5.0 / angular_distance : 1.0;
+      // 计算外点剔除的权重
+      huber = angular_distance > 5.0 ? 5.0 / angular_distance : 1.0;
+    }
 
     Matrix4d L, R;
 
@@ -60,6 +63,7 @@ bool InitialEXRotation::CalibrationExRotation(vector<pair<Vector3d, Vector3d>> c
   Quaterniond estimated_R(x);
   ric = estimated_R.toRotationMatrix().inverse();
 
+  // 第二小的奇异值是否大于某个阈值,若大于则其零空间的秩为 1,反之秩大于 1, 相对旋转的精度不够,校准不成功
   Vector3d ric_cov = svd.singularValues().tail<3>();
   if (frame_count >= WINDOW_SIZE && ric_cov(1) > 0.25) {
     calib_ric_result = ric;

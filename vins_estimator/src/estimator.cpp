@@ -76,13 +76,12 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
     gyr_0 = angular_velocity;
   }
 
-  //! 当滑窗不满的时候，把当前测量值加入到滑窗指定位置，所以在这个阶段做预计分的时候相当于是在和自己做预积分
   if (!pre_integrations[frame_count]) {
     pre_integrations[frame_count] = new IntegrationBase{acc_0, gyr_0, Bas[frame_count], Bgs[frame_count]};
   }
 
-  //! 进入预积分环节
   if (frame_count != 0) {
+    // 预积分
     pre_integrations[frame_count]->push_back(dt, linear_acceleration, angular_velocity);
     // if(solver_flag != NON_LINEAR)
     tmp_pre_integration->push_back(dt, linear_acceleration, angular_velocity);
@@ -93,6 +92,7 @@ void Estimator::processIMU(double dt, const Vector3d &linear_acceleration, const
 
     int j = frame_count;
 
+    // 积分 R P V
     Vector3d un_acc_0 = Rs[j] * (acc_0 - Bas[j]) - g;
     Vector3d un_gyr = 0.5 * (gyr_0 + angular_velocity) - Bgs[j];
     Rs[j] *= Utility::deltaQ(un_gyr * dt).toRotationMatrix();
@@ -259,7 +259,7 @@ bool Estimator::initialStructure() {
   }
 
   // 在滑窗内寻找与当前帧的匹配特征点数较多的关键帧作为参考帧,
-  // 并通过求基础矩阵 T:  当前帧到共视帧  now ===> l
+  // 并求变换矩阵 T:  当前帧到共视帧  cur --> l
   Matrix3d relative_R;
   Vector3d relative_T;
   int l;
@@ -444,15 +444,13 @@ bool Estimator::visualInitialAlign() {
 }
 
 bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l) {
-  // find previous frame which contians enough correspondance and parallex
-  // with newest frame
+  // find previous frame which contians enough correspondance and parallex with newest frame
 
   // 在滑窗内寻找与最新的关键帧共视点超过20(像素点)的关键帧
   for (int i = 0; i < WINDOW_SIZE; i++) {
     vector<pair<Vector3d, Vector3d>> corres;
     corres = f_manager.getCorresponding(i, WINDOW_SIZE);
 
-    // 共视的Features应该大于20
     if (corres.size() > 20) {
       // 求取匹配的特征点在图像上的视差和(归一化平面上)
       double sum_parallax = 0;
@@ -462,8 +460,6 @@ bool Estimator::relativePose(Matrix3d &relative_R, Vector3d &relative_T, int &l)
         double parallax = (pts_0 - pts_1).norm();
         sum_parallax = sum_parallax + parallax;
       }
-
-      // 求取所有匹配的特征点的平均视差
       double average_parallax = 1.0 * sum_parallax / int(corres.size());
 
       // 视差大于一定阈值，并且能够有效地求解出变换矩阵

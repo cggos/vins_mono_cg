@@ -352,6 +352,7 @@ int main(int argc, char **argv) {
 
   registerPub(n);
 
+  // ros::TransportHints().tcpNoDelay()允许指定hints到roscpp的传输层，这里使用没延迟的TCP。其实也可以使用UPD传输
   ros::Subscriber sub_imu = n.subscribe(IMU_TOPIC, 2000, imu_callback, ros::TransportHints().tcpNoDelay());
   ros::Subscriber sub_image = n.subscribe("/feature_tracker/feature", 2000, feature_callback);
   ros::Subscriber sub_restart = n.subscribe("/feature_tracker/restart", 2000, restart_callback);
