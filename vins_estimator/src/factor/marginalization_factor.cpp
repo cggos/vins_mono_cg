@@ -13,6 +13,7 @@ void ResidualBlockInfo::Evaluate() {
   }
   cost_function->Evaluate(parameter_blocks.data(), residuals.data(), raw_jacobians);
 
+  // ref: http://ceres-solver.org/nnls_modeling.html?highlight=loss#theory
   if (loss_function) {
     double residual_scaling_, alpha_sq_norm_;
 
@@ -54,16 +55,15 @@ MarginalizationInfo::~MarginalizationInfo() {
 void MarginalizationInfo::addResidualBlockInfo(ResidualBlockInfo *residual_block_info) {
   factors.emplace_back(residual_block_info);
 
-  std::vector<int> &drop_set = residual_block_info->drop_set;
-  std::vector<double *> &parameter_blocks = residual_block_info->parameter_blocks;
+  const auto &parameter_blocks = residual_block_info->parameter_blocks;
 
   for (int i = 0; i < parameter_blocks.size(); i++) {
     long addr = reinterpret_cast<long>(parameter_blocks[i]);
     parameter_block_size[addr] = residual_block_info->cost_function->parameter_block_sizes()[i];
   }
 
-  for (int i = 0; i < drop_set.size(); i++) {
-    long addr = reinterpret_cast<long>(parameter_blocks[drop_set[i]]);
+  for (const auto drop_id : residual_block_info->drop_set) {
+    long addr = reinterpret_cast<long>(parameter_blocks[drop_id]);
     parameter_block_idx[addr] = 0;
   }
 }
@@ -134,8 +134,6 @@ void MarginalizationInfo::marginalize() {
 
   n = pos - m;
 
-  // printf("[cggos %s] m: %d, n: %d \n", __FUNCTION__, m, n);
-
   Eigen::MatrixXd A(pos, pos);
   Eigen::VectorXd b(pos);
   A.setZero();
@@ -189,9 +187,8 @@ void MarginalizationInfo::marginalize() {
   b = brr - Arm * Amm_inv * bmm;
 
   Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes2(A);
-  Eigen::VectorXd S = Eigen::VectorXd((saes2.eigenvalues().array() > eps).select(saes2.eigenvalues().array(), 0));
-  Eigen::VectorXd S_inv =
-      Eigen::VectorXd((saes2.eigenvalues().array() > eps).select(saes2.eigenvalues().array().inverse(), 0));
+  auto S = Eigen::VectorXd((saes2.eigenvalues().array() > eps).select(saes2.eigenvalues().array(), 0));
+  auto S_inv = Eigen::VectorXd((saes2.eigenvalues().array() > eps).select(saes2.eigenvalues().array().inverse(), 0));
 
   Eigen::VectorXd S_sqrt = S.cwiseSqrt();
   Eigen::VectorXd S_inv_sqrt = S_inv.cwiseSqrt();

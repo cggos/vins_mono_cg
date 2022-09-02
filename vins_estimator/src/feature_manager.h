@@ -99,7 +99,8 @@ class FeatureManager {
 
   /**
    * @brief 三角化没有恢复出深度的特征点
-   * @details 1.将所有的frame转到同一个frame之下  2.进行三角化的剩余步骤
+   * @details 1.将所有的frame转到同一个frame之下  
+   *          2.进行三角化的剩余步骤
    * @param Ps
    * @param tic
    * @param ric

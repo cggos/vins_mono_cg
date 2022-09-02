@@ -59,7 +59,7 @@ class Estimator {
    *          2.求取滑窗内每一帧IMU对应的速度、重力向量以及尺度因子
    * @return
    */
-  bool visualInitialAlign();
+  bool visualInertialAlign();
 
   /**
    * @brief 在滑窗中寻找与最新的关键帧共视关系较强的关键帧

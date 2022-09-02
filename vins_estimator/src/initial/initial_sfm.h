@@ -1,6 +1,7 @@
 #pragma once
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
+
 #include <cstdlib>
 #include <deque>
 #include <eigen3/Eigen/Dense>
@@ -52,7 +53,7 @@ class GlobalSFM {
   /**
    * @brief 以第l帧坐标系为参考系，PnP计算滑窗内每一帧的位姿，并三角化特征点，最后 full BA。
    *
-   *        输出 q、T： transform from Ci to C0 (第l帧)
+   *        输出 q、T： transform from Ci to Cl (第l帧)
    *
    * @param frame_num
    * @param q
@@ -83,6 +84,15 @@ class GlobalSFM {
                         Vector2d &point1,
                         Vector3d &point_3d);
 
+  /**
+   * @brief 在所有特征中 寻找 frame0 和 frame1 有共同观测的特征，并利用观测三角化
+   *
+   * @param frame0
+   * @param Pose0
+   * @param frame1
+   * @param Pose1
+   * @param sfm_f
+   */
   void triangulateTwoFrames(int frame0,
                             Eigen::Matrix<double, 3, 4> &Pose0,
                             int frame1,

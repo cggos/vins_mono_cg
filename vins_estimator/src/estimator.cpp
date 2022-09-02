@@ -168,6 +168,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
 
         printf("[cggos %s] Initialization finish!\n", __FUNCTION__);
 
+        // for failure
         last_R = Rs[WINDOW_SIZE];
         last_P = Ps[WINDOW_SIZE];
         last_R0 = Rs[0];
@@ -199,6 +200,7 @@ void Estimator::processImage(const map<int, vector<pair<int, Eigen::Matrix<doubl
     key_poses.clear();
     for (int i = 0; i <= WINDOW_SIZE; i++) key_poses.push_back(Ps[i]);
 
+    // for failure
     last_R = Rs[WINDOW_SIZE];
     last_P = Ps[WINDOW_SIZE];
     last_R0 = Rs[0];
@@ -267,8 +269,10 @@ bool Estimator::initialStructure() {
     ROS_INFO("Not enough features or parallax; Move device around");
     return false;
   }
+  std::cout << "[CGGOS] " << __FUNCTION__ << " " << __LINE__ << ": " << "初始坐标系 l = " << l << std::endl;
 
   // 三角化恢复滑窗内的Features
+  // solve pnp: Tli
   GlobalSFM sfm;
   Quaterniond Q[frame_count + 1];
   Vector3d T[frame_count + 1];
@@ -286,7 +290,7 @@ bool Estimator::initialStructure() {
     // provide initial guess
     if ((frame_it->first) == Headers[i].stamp.toSec()) {
       frame_it->second.is_key_frame = true;
-      frame_it->second.R = Q[i].toRotationMatrix() * RIC[0].transpose();
+      frame_it->second.R = Q[i].toRotationMatrix() * RIC[0].transpose();  // Tclci * Tcb -> Tclbi
       frame_it->second.T = T[i];
       i++;
       continue;
@@ -336,7 +340,7 @@ bool Estimator::initialStructure() {
       return false;
     }
 
-    // PnP求解出的位姿要取逆
+    // Tcicl^{-1} -> Tclci
     MatrixXd R_pnp;
     MatrixXd T_pnp;
     {
@@ -350,13 +354,13 @@ bool Estimator::initialStructure() {
       T_pnp = R_pnp * (-T_pnp);
     }
 
-    // 转换到IMU坐标系下
+    // Rclci * Rcb -> Rclbi
+    // tclci
     frame_it->second.R = R_pnp * RIC[0].transpose();
     frame_it->second.T = T_pnp;
   }
 
-  // 视觉与IMU对齐
-  if (visualInitialAlign())
+  if (visualInertialAlign())
     return true;
   else {
     ROS_INFO("misalign visual structure with IMU");
@@ -364,7 +368,7 @@ bool Estimator::initialStructure() {
   }
 }
 
-bool Estimator::visualInitialAlign() {
+bool Estimator::visualInertialAlign() {
   VectorXd x;
 
   // solve scale
@@ -375,6 +379,7 @@ bool Estimator::visualInitialAlign() {
   }
 
   // Ps & Rs
+  // tclci, Rclbi
   for (int i = 0; i <= frame_count; i++) {
     Matrix3d Ri = all_image_frame[Headers[i].stamp.toSec()].R;
     Vector3d Pi = all_image_frame[Headers[i].stamp.toSec()].T;
@@ -396,15 +401,12 @@ bool Estimator::visualInitialAlign() {
 
   double s = (x.tail<1>())(0);
 
-  for (int i = 0; i <= WINDOW_SIZE; i++) {
-    pre_integrations[i]->repropagate(Vector3d::Zero(), Bgs[i]);
-  }
+  for (int i = 0; i <= WINDOW_SIZE; i++) pre_integrations[i]->repropagate(Vector3d::Zero(), Bgs[i]);
 
-  // Ps
-  for (int i = frame_count; i >= 0; i--)
-    Ps[i] = s * Ps[i] - Rs[i] * TIC[0] - (s * Ps[0] - Rs[0] * TIC[0]);  // [cggos]: why
+  // Ps: tbib0 = tclbi - tclb0
+  for (int i = frame_count; i >= 0; i--) Ps[i] = s * Ps[i] - Rs[i] * TIC[0] - (s * Ps[0] - Rs[0] * TIC[0]);
 
-  // Vs
+  // Vs: vi = Rclbi * vi
   int kv = -1;
   map<double, ImageFrame>::iterator frame_i;
   for (frame_i = all_image_frame.begin(); frame_i != all_image_frame.end(); frame_i++) {
@@ -422,9 +424,13 @@ bool Estimator::visualInitialAlign() {
   }
 
   // 旋转 g、Ps、Rs、Vs 到水平坐标系
+
+  // Rwcl(Roll, Pitch)
   Matrix3d R0 = Utility::g2R(g);
-  double yaw = Utility::R2ypr(R0 * Rs[0]).x();
-  R0 = Utility::ypr2R(Eigen::Vector3d{-yaw, 0, 0}) * R0;
+  {
+    double yaw = Utility::R2ypr(R0 * Rs[0]).x();  // Rwcl * Rclb0
+    R0 = Utility::ypr2R(Eigen::Vector3d{-yaw, 0, 0}) * R0;
+  }
   g = R0 * g;
   // Matrix3d rot_diff = R0 * Rs[0].transpose();
   Matrix3d rot_diff = R0;
@@ -481,10 +487,10 @@ void Estimator::solveOdometry() {
 
   if (solver_flag == NON_LINEAR) {
     TicToc t_tri;
-    f_manager.triangulate(Ps, tic, ric);  // 三角化还没有得到深度的Features
+    f_manager.triangulate(Ps, tic, ric);
     ROS_DEBUG("triangulation costs %f", t_tri.toc());
 
-    optimization();  // 进入优化阶段
+    optimization();
   }
 }
 
@@ -816,14 +822,12 @@ void Estimator::optimization() {
   double2vector();
 
   /**
-   * sliding windows bounding了优化问题中pose的个数,
-   * 从而防止pose和特征的个数随时间不断增加,
+   * sliding windows bounding了优化问题中pose的个数, 从而防止pose和特征的个数随时间不断增加,
    * 使得优化问题始终在一个有限的复杂度内, 不会随时间不断增长
    *
-   * 然而, 将pose移出windows时, 有些约束会被丢弃掉,
-   * 这样势必会导致求解的精度下降, 而且当MAV进行一些退化运动(如: 匀速运动)时,
-   * 没有历史信息做约束的话是无法求解的. 所以, 在移出位姿或特征的时候,
-   * 需要将相关联的约束转变成一个约束项作为prior放到优化问题中.
+   * 然而, 将pose移出windows时, 有些约束会被丢弃掉, 这样势必会导致求解的精度下降, 
+   * 而且当MAV进行一些退化运动(如: 匀速运动)时, 没有历史信息做约束的话是无法求解的. 
+   * 所以, 在移出位姿或特征的时候, 需要将相关联的约束转变成一个约束项作为prior放到优化问题中.
    * 这就是marginalization要做的事情
    *
    * MARGIN_OLD:
@@ -834,13 +838,10 @@ void Estimator::optimization() {
    * 如果次新帧不是关键帧，则丢弃当前帧的前一帧。因为判定当前帧不是关键帧的条件就是当前帧与前一帧视差很小，也就是说当前帧和前一帧很相似，
    * 这种情况下直接丢弃前一帧，然后用当前帧代替前一帧。为什么这里可以不对前一帧进行边缘化，而是直接丢弃，原因就是当前帧和前一帧很相似，
    * 因此当前帧与地图点之间的约束和前一帧与地图点之间的约束是很接近的，直接丢弃并不会造成整个约束关系丢失信息。这里需要注意的是，
-   * 要把当前帧和前一帧之间的 IMU 预积分转换为当前帧和前二帧之间的 IMU
-   * 预积分。
+   * 要把当前帧和前一帧之间的 IMU 预积分转换为当前帧和前二帧之间的 IMU预积分。
    *
-   * 在悬停等运动较小的情况下, 会频繁的MARGIN_NEW,
-   * 这样也就保留了那些比较旧但是视差比较大的pose.
-   * 这种情况如果一直MARGIN_OLD的话, 视觉约束不够强,
-   * 状态估计会受IMU积分误差影响, 具有较大的累积误差
+   * 在悬停等运动较小的情况下, 会频繁的MARGIN_NEW, 这样也就保留了那些比较旧但是视差比较大的pose.
+   * 这种情况如果一直MARGIN_OLD的话, 视觉约束不够强, 状态估计会受IMU积分误差影响, 具有较大的累积误差
    */
 
   TicToc t_whole_marginalization;
@@ -852,8 +853,7 @@ void Estimator::optimization() {
     vector2double();
 
     // 先验误差会一直保存，而不是只使用一次
-    // 要边缘化的参数块是 para_Pose[0] para_SpeedBias[0] 以及
-    // para_Feature[feature_index](滑窗内的第feature_index个点的逆深度)
+    // 要边缘化的参数块是 para_Pose[0] para_SpeedBias[0] 以及 para_Feature[feature_index](滑窗内的第feature_index个点的逆深度)
     if (last_marginalization_info) {
       vector<int> drop_set;
       for (int i = 0; i < static_cast<int>(last_marginalization_parameter_blocks.size()); i++) {
@@ -863,10 +863,8 @@ void Estimator::optimization() {
           drop_set.push_back(i);
       }
 
-      // construct new marginlization_factor
       auto *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
 
-      // 添加上一次边缘化的参数块
       auto *residual_block_info =
           new ResidualBlockInfo(marginalization_factor, nullptr, last_marginalization_parameter_blocks, drop_set);
 
@@ -951,7 +949,6 @@ void Estimator::optimization() {
       addr_shift[reinterpret_cast<long>(para_SpeedBias[i])] = para_SpeedBias[i - 1];
     }
     for (int i = 0; i < NUM_OF_CAM; i++) addr_shift[reinterpret_cast<long>(para_Ex_Pose[i])] = para_Ex_Pose[i];
-
     if (ESTIMATE_TD) addr_shift[reinterpret_cast<long>(para_Td[0])] = para_Td[0];
 
     if (last_marginalization_info) delete last_marginalization_info;
@@ -1025,11 +1022,12 @@ void Estimator::optimization() {
 
 void Estimator::slideWindow() {
   if (marginalization_flag == MARGIN_OLD) {
-    // 如果要删去最后一帧，则滑窗每一个帧向后挪动一个位置，把最后一帧给“挤掉”，还让最新帧等于次新帧
     double t_0 = Headers[0].stamp.toSec();
     back_R0 = Rs[0];
     back_P0 = Ps[0];
+
     if (frame_count == WINDOW_SIZE) {
+      // 删去最后一帧，则滑窗每一个帧向后挪动一个位置
       for (int i = 0; i < WINDOW_SIZE; i++) {
         Rs[i].swap(Rs[i + 1]);
 
@@ -1045,41 +1043,51 @@ void Estimator::slideWindow() {
         Bas[i].swap(Bas[i + 1]);
         Bgs[i].swap(Bgs[i + 1]);
       }
-      Headers[WINDOW_SIZE] = Headers[WINDOW_SIZE - 1];
-      Ps[WINDOW_SIZE] = Ps[WINDOW_SIZE - 1];
-      Vs[WINDOW_SIZE] = Vs[WINDOW_SIZE - 1];
-      Rs[WINDOW_SIZE] = Rs[WINDOW_SIZE - 1];
-      Bas[WINDOW_SIZE] = Bas[WINDOW_SIZE - 1];
-      Bgs[WINDOW_SIZE] = Bgs[WINDOW_SIZE - 1];
 
-      delete pre_integrations[WINDOW_SIZE];
-      pre_integrations[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, Bas[WINDOW_SIZE], Bgs[WINDOW_SIZE]};
+      // 最新帧
+      {
+        // 让最新帧等于次新帧
+        Headers[WINDOW_SIZE] = Headers[WINDOW_SIZE - 1];
+        Ps[WINDOW_SIZE] = Ps[WINDOW_SIZE - 1];
+        Vs[WINDOW_SIZE] = Vs[WINDOW_SIZE - 1];
+        Rs[WINDOW_SIZE] = Rs[WINDOW_SIZE - 1];
+        Bas[WINDOW_SIZE] = Bas[WINDOW_SIZE - 1];
+        Bgs[WINDOW_SIZE] = Bgs[WINDOW_SIZE - 1];
 
-      dt_buf[WINDOW_SIZE].clear();
-      linear_acceleration_buf[WINDOW_SIZE].clear();
-      angular_velocity_buf[WINDOW_SIZE].clear();
+        delete pre_integrations[WINDOW_SIZE];
+        pre_integrations[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, Bas[WINDOW_SIZE], Bgs[WINDOW_SIZE]};
+
+        dt_buf[WINDOW_SIZE].clear();
+        linear_acceleration_buf[WINDOW_SIZE].clear();
+        angular_velocity_buf[WINDOW_SIZE].clear();
+      }
 
       if (true || solver_flag == INITIAL) {
         map<double, ImageFrame>::iterator it_0;
         it_0 = all_image_frame.find(t_0);
 
+        // 删除 最老帧 及其之前的 
+        
+        // 预积分
         delete it_0->second.pre_integration;
         it_0->second.pre_integration = nullptr;
-
         for (map<double, ImageFrame>::iterator it = all_image_frame.begin(); it != it_0; ++it) {
           if (it->second.pre_integration) delete it->second.pre_integration;
-          it->second.pre_integration = NULL;
+          it->second.pre_integration = nullptr;
         }
 
+        // 视觉观测
         all_image_frame.erase(all_image_frame.begin(), it_0);
         all_image_frame.erase(t_0);
       }
 
+      // 把老帧的信息传给新帧
       slideWindowOld();
     }
   } else {
-    // 如果要删去次新帧(不是最新帧,是次新帧),则仅仅让次新帧的信息等于新帧
     if (frame_count == WINDOW_SIZE) {
+      // 如果要删去次新帧(不是最新帧,是次新帧)
+      // 次新帧 预积分 继续积分 当前帧测量
       for (unsigned int i = 0; i < dt_buf[frame_count].size(); i++) {
         double tmp_dt = dt_buf[frame_count][i];
         Vector3d tmp_linear_acceleration = linear_acceleration_buf[frame_count][i];
@@ -1091,7 +1099,7 @@ void Estimator::slideWindow() {
         linear_acceleration_buf[frame_count - 1].push_back(tmp_linear_acceleration);
         angular_velocity_buf[frame_count - 1].push_back(tmp_angular_velocity);
       }
-
+      // 让次新帧的信息等于新帧
       Headers[frame_count - 1] = Headers[frame_count];
       Ps[frame_count - 1] = Ps[frame_count];
       Vs[frame_count - 1] = Vs[frame_count];
@@ -1099,6 +1107,7 @@ void Estimator::slideWindow() {
       Bas[frame_count - 1] = Bas[frame_count];
       Bgs[frame_count - 1] = Bgs[frame_count];
 
+      // 处理 最新帧
       delete pre_integrations[WINDOW_SIZE];
       pre_integrations[WINDOW_SIZE] = new IntegrationBase{acc_0, gyr_0, Bas[WINDOW_SIZE], Bgs[WINDOW_SIZE]};
 

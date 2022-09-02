@@ -166,11 +166,11 @@ void RefineGravity(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vector
 bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, VectorXd &x) {
   int all_frame_count = all_image_frame.size();
 
-  int n_state = all_frame_count * 3 + 3 + 1;  // 状态量的个数[v1,v2....Vn,g,s]
+  int n_state = all_frame_count * 3 + 3 + 1;  // 状态量的个数[v1,v2....Vn, g, s]
 
   MatrixXd A{n_state, n_state};
-  A.setZero();
   VectorXd b{n_state};
+  A.setZero();
   b.setZero();
 
   map<double, ImageFrame>::iterator frame_i;
@@ -180,8 +180,8 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
     frame_j = next(frame_i);
 
     MatrixXd tmp_A(6, 10);
-    tmp_A.setZero();
     VectorXd tmp_b(6);
+    tmp_A.setZero();
     tmp_b.setZero();
 
     double dt = frame_j->second.pre_integration->sum_dt;
@@ -216,15 +216,14 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
     A.block<4, 6>(n_state - 4, i * 3) += r_A.bottomLeftCorner<4, 6>();
   }
 
+  // ???
   A = A * 1000.0;
   b = b * 1000.0;
   x = A.ldlt().solve(b);
 
-  // 提取尺度因子
   double s = x(n_state - 1) / 100.0;
   ROS_DEBUG("estimated scale: %f", s);
 
-  // 提取重力向量
   g = x.segment<3>(n_state - 4);
   ROS_DEBUG_STREAM(" result g     " << g.norm() << " " << g.transpose());
 
@@ -232,13 +231,11 @@ bool LinearAlignment(map<double, ImageFrame> &all_image_frame, Vector3d &g, Vect
     return false;
   }
 
-  // 细化重力向量
   RefineGravity(all_image_frame, g, x);
+  ROS_DEBUG_STREAM(" refine     " << g.norm() << " " << g.transpose());
 
-  // 重新提取尺度因子和重力向量
   s = (x.tail<1>())(0) / 100.0;
   (x.tail<1>())(0) = s;
-  ROS_DEBUG_STREAM(" refine     " << g.norm() << " " << g.transpose());
 
   return (s >= 0.0);
 }
